@@ -14,11 +14,21 @@ impl<'a> Curve<'a> for EdwardsCurve<'a> {
     /// # Examples
     ///
     /// ```
-    /// // assume `curve` is an `EdwardsCurve` already available in scope
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let d = FieldElement::new(U1024::from_u64(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params);
+    ///
     /// let id = curve.identity();
     /// let (x, y) = id.to_affine();
-    /// assert_eq!(x, FieldElement::zero(curve.params));
-    /// assert_eq!(y, FieldElement::one(curve.params));
+    /// assert_eq!(x, FieldElement::zero(&params));
+    /// assert_eq!(y, FieldElement::one(&params));
     /// ```
     fn identity(&self) -> Self::Point {
         let curve = self.clone();
@@ -40,8 +50,20 @@ impl<'a> Curve<'a> for EdwardsCurve<'a> {
     /// # Examples
     ///
     /// ```
-    /// // Given a curve `curve` and field elements `x`, `y` already constructed for the same field:
-    /// // assert!(curve.is_on_curve(&x, &y));
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let d = FieldElement::new(U1024::from_u64(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params);
+    ///
+    /// let x = FieldElement::zero(&params);
+    /// let y = FieldElement::one(&params);
+    /// assert!(curve.is_on_curve(&x, &y));
     /// ```
     fn is_on_curve(&self, x: &FieldElement, y: &FieldElement) -> bool {
         let x2 = *x * *x;
@@ -106,8 +128,20 @@ impl<'a> TePoint<'a> {
     /// # Examples
     ///
     /// ```
-    /// // Given existing `x: FieldElement`, `y: FieldElement`, and `curve: EdwardsCurve`
-    /// let p = TePoint::new_affine(x, y, &curve);
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::twisted_edwards::{EdwardsCurve, TePoint};
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let d = FieldElement::new(U1024::from_u64(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params);
+    ///
+    /// let x = FieldElement::zero(&params);
+    /// let y = FieldElement::one(&params);
+    /// let p = TePoint::new_affine(x.clone(), y.clone(), &curve);
     /// let (xa, ya) = p.to_affine();
     /// assert_eq!(xa, x);
     /// assert_eq!(ya, y);
@@ -141,9 +175,18 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// # Examples
     ///
     /// ```
-    /// // Construct an identity point and verify it.
-    /// // `curve` must be a valid `EdwardsCurve` and `FieldElement` helpers available in scope.
-    /// let id = TePoint::new_affine(FieldElement::zero(curve.params), FieldElement::one(curve.params), curve.clone());
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::twisted_edwards::{EdwardsCurve, TePoint};
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let d = FieldElement::new(U1024::from_u64(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params);
+    ///
+    /// let id = TePoint::new_affine(FieldElement::zero(&params), FieldElement::one(&params), &curve);
     /// assert!(id.is_identity());
     /// ```
     fn is_identity(&self) -> bool {
@@ -159,9 +202,20 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// # Examples
     ///
     /// ```
-    /// // Given two points `p` and `q` on the same Edwards curve:
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let d = FieldElement::new(U1024::from_u64(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params);
+    ///
+    /// let p = curve.identity();
+    /// let q = curve.identity();
     /// let r = p.add(&q);
-    /// // addition is commutative for curve points
     /// assert_eq!(r, q.add(&p));
     /// ```
     fn add(&self, rhs: &Self) -> Self {
@@ -203,6 +257,18 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// # Examples
     ///
     /// ```
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let d = FieldElement::new(U1024::from_u64(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params);
+    ///
+    /// let point = curve.identity();
     /// let doubled = point.double();
     /// assert_eq!(doubled, point.add(&point));
     /// ```
@@ -246,9 +312,19 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// # Examples
     ///
     /// ```
-    /// // Given a projective point `p`, obtain its affine coordinates:
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let d = FieldElement::new(U1024::from_u64(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params);
+    ///
+    /// let p = curve.identity();
     /// let (x, y) = p.to_affine();
-    /// // `x` and `y` are FieldElement values representing the affine point.
     /// ```
     fn to_affine(&self) -> (FieldElement<'a>, FieldElement<'a>) {
         if self.z.value == U1024::zero() {
@@ -270,9 +346,18 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// # Examples
     ///
     /// ```
-    /// // Given a point `p: TePoint<'_>` and a 1024-bit scalar `k: U1024`,
-    /// // compute the scalar multiple and verify the zero-scalar case.
-    /// let p = /* existing TePoint<'_'> */ unimplemented!();
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let d = FieldElement::new(U1024::from_u64(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params);
+    ///
+    /// let p = curve.identity();
     /// let k = U1024::zero();
     /// let r = p.mul(&k);
     /// assert!(r.is_identity());
