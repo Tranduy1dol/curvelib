@@ -11,6 +11,14 @@ pub struct WeierstrassCurve<'a> {
 }
 
 impl<'a> WeierstrassCurve<'a> {
+    /// Creates a WeierstrassCurve with the given curve coefficients and Montgomery parameters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let curve = WeierstrassCurve::new(a, b, params);
+    /// assert_eq!(curve.a, a);
+    /// ```
     pub fn new(a: FieldElement<'a>, b: FieldElement<'a>, params: &'a MontgomeryParams) -> Self {
         Self { a, b, params }
     }
@@ -19,6 +27,17 @@ impl<'a> WeierstrassCurve<'a> {
 impl<'a> Curve<'a> for WeierstrassCurve<'a> {
     type Point = SWPoint<'a>;
 
+    /// Creates the identity (point at infinity) for this curve in projective coordinates.
+    ///
+    /// The returned `SWPoint` has its projective `z` coordinate set to zero, representing the point at infinity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Assume `curve` is a `&WeierstrassCurve` already constructed.
+    /// let id = curve.identity();
+    /// assert!(id.is_identity());
+    /// ```
     fn identity(&self) -> Self::Point {
         let curve = self.clone();
         let one = FieldElement::one(curve.params);
@@ -31,6 +50,13 @@ impl<'a> Curve<'a> for WeierstrassCurve<'a> {
         }
     }
 
+    /// Determines whether the given affine point lies on this Weierstrass curve.
+    ///
+    /// - `x`: Affine x-coordinate of the point.
+    /// - `y`: Affine y-coordinate of the point.
+    ///
+    /// # Returns
+    /// `true` if `y^2 = x^3 + a*x + b` holds for this curve's parameters, `false` otherwise.
     fn is_on_curve(&self, x: &FieldElement, y: &FieldElement) -> bool {
         let y2 = *y * *y;
         let x2 = *x * *x;
@@ -67,6 +93,24 @@ impl<'a> PartialEq for SWPoint<'a> {
 impl<'a> Eq for SWPoint<'a> {}
 
 impl<'a> SWPoint<'a> {
+    /// Constructs a projective curve point from affine coordinates, treating (0, 0) as the point at infinity.
+    ///
+    /// If `x` and `y` are both zero, the curve identity is returned; otherwise the point is returned with `z = 1`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Given an existing `curve` and its parameters:
+    /// let x = FieldElement::one(curve.params);
+    /// let y = FieldElement::one(curve.params);
+    /// let p = SWPoint::new_affine(x, y, &curve);
+    /// assert!(!p.is_identity());
+    ///
+    /// // The affine pair (0, 0) is interpreted as the identity:
+    /// let z0 = FieldElement::zero(curve.params);
+    /// let id = SWPoint::new_affine(z0.clone(), z0, &curve);
+    /// assert!(id.is_identity());
+    /// ```
     pub fn new_affine(
         x: FieldElement<'a>,
         y: FieldElement<'a>,
@@ -86,10 +130,41 @@ impl<'a> SWPoint<'a> {
 }
 
 impl<'a> ProjectivePoint for SWPoint<'a> {
+    /// Checks whether this point is the identity (point at infinity).
+    ///
+    /// The point is considered the identity when its projective `z` coordinate is zero.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the point's `z` coordinate equals zero, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // assume `curve` is a WeierstrassCurve and `p` is an SWPoint obtained from it
+    /// let id = curve.identity();
+    /// assert!(id.is_identity());
+    /// ```
     fn is_identity(&self) -> bool {
         self.z.value == U1024::zero()
     }
 
+    /// Adds two points on the Weierstrass curve using projective coordinates.
+    ///
+    /// Performs elliptic-curve point addition in projective form and returns the resulting point.
+    /// If either operand is the identity, the other operand is returned. If the points are
+    /// inverses of each other, the curve identity is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // `p` and `q` are `SWPoint` instances on the same curve
+    /// let r = p.add(&q);
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// The projective `SWPoint` representing the sum of `self` and `rhs`.
     fn add(&self, rhs: &Self) -> Self {
         if self.is_identity() {
             return rhs.clone();
@@ -137,6 +212,24 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
         }
     }
 
+    /// Doubles this point on its associated Weierstrass curve using projective coordinates.
+    ///
+    /// Returns the point 2P; if this point is the identity (point at infinity), returns a clone of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use crate::models::weierstrass::{WeierstrassCurve, SWPoint};
+    /// # use mathlib::{FieldElement, U1024};
+    /// # // setup placeholders for a curve and an affine point; real construction depends on surrounding code
+    /// # let params = &montgomery_params(); // implementor-provided helper in test environment
+    /// # let a = FieldElement::new(U1024::from_u64(0), params);
+    /// # let b = FieldElement::new(U1024::from_u64(7), params);
+    /// # let curve = WeierstrassCurve::new(a, b, params);
+    /// let p = curve.identity();
+    /// let r = p.double();
+    /// assert!(r.is_identity());
+    /// ```
     fn double(&self) -> Self {
         if self.is_identity() {
             return self.clone();
@@ -170,6 +263,20 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
         }
     }
 
+    /// Convert this projective point to affine coordinates.
+    ///
+    /// Returns a pair `(x, y)` representing the affine coordinates of the point. If the point is the
+    /// identity (point at infinity), returns `(0, 0)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let curve = /* construct or obtain WeierstrassCurve */ unimplemented!();
+    /// let p = curve.identity();
+    /// let (x, y) = p.to_affine();
+    /// assert_eq!(x, FieldElement::zero(curve.params));
+    /// assert_eq!(y, FieldElement::zero(curve.params));
+    /// ```
     fn to_affine(&self) -> (FieldElement<'a>, FieldElement<'a>) {
         if self.is_identity() {
             let zero = FieldElement::zero(self.curve.params);
@@ -186,6 +293,20 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
         (x_aff, y_aff)
     }
 
+    /// Multiplies this point by a 1024-bit scalar using the double-and-add algorithm.
+    ///
+    /// The operation returns k * P where k is `scalar` and P is `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// // Construct curve, point and scalar according to this crate's APIs
+    /// let curve = WeierstrassCurve::new(a, b, params);
+    /// let p = SWPoint::new_affine(x, y, &curve);
+    /// let k = U1024::from_u64(3);
+    /// let r = p.mul(&k);
+    /// // r now equals p + p + p
+    /// ```
     fn mul(&self, scalar: &U1024) -> Self {
         let mut res = self.curve.identity();
 
