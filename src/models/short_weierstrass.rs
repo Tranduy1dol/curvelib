@@ -1,7 +1,7 @@
 use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
 use mathlib::{BigInt, U1024};
 
-use crate::traits::ProjectivePoint;
+use crate::traits::{Curve, ProjectivePoint};
 
 #[derive(Clone, Debug)]
 pub struct WeierstrassCurve<'a> {
@@ -11,8 +11,77 @@ pub struct WeierstrassCurve<'a> {
 }
 
 impl<'a> WeierstrassCurve<'a> {
+    /// Creates a WeierstrassCurve with the given curve coefficients and Montgomery parameters.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::short_weierstrass::WeierstrassCurve;
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let b = FieldElement::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params);
+    /// assert_eq!(curve.a, a);
+    /// ```
     pub fn new(a: FieldElement<'a>, b: FieldElement<'a>, params: &'a MontgomeryParams) -> Self {
         Self { a, b, params }
+    }
+}
+
+impl<'a> Curve<'a> for WeierstrassCurve<'a> {
+    type Point = SWPoint<'a>;
+
+    /// Creates the identity (point at infinity) for this curve in projective coordinates.
+    ///
+    /// The returned `SWPoint` has its projective `z` coordinate set to zero, representing the point at infinity.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::short_weierstrass::WeierstrassCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let b = FieldElement::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params);
+    ///
+    /// let id = curve.identity();
+    /// assert!(id.is_identity());
+    /// ```
+    fn identity(&self) -> Self::Point {
+        let curve = self.clone();
+        let one = FieldElement::one(curve.params);
+        let zero = FieldElement::zero(curve.params);
+        SWPoint {
+            x: one,
+            y: one,
+            z: zero,
+            curve,
+        }
+    }
+
+    /// Determines whether the given affine point lies on this Weierstrass curve.
+    ///
+    /// - `x`: Affine x-coordinate of the point.
+    /// - `y`: Affine y-coordinate of the point.
+    ///
+    /// # Returns
+    /// `true` if `y^2 = x^3 + a*x + b` holds for this curve's parameters, `false` otherwise.
+    fn is_on_curve(&self, x: &FieldElement, y: &FieldElement) -> bool {
+        let y2 = *y * *y;
+        let x2 = *x * *x;
+        let x3 = x2 * *x;
+        let ax = self.a * *x;
+        let rhs = x3 + ax + self.b;
+        y2 == rhs
     }
 }
 
@@ -21,7 +90,7 @@ pub struct SWPoint<'a> {
     pub x: FieldElement<'a>,
     pub y: FieldElement<'a>,
     pub z: FieldElement<'a>,
-    pub curve: &'a WeierstrassCurve<'a>,
+    pub curve: WeierstrassCurve<'a>,
 }
 
 impl<'a> PartialEq for SWPoint<'a> {
@@ -42,39 +111,111 @@ impl<'a> PartialEq for SWPoint<'a> {
 impl<'a> Eq for SWPoint<'a> {}
 
 impl<'a> SWPoint<'a> {
+    /// Constructs a projective curve point from affine coordinates, treating (0, 0) as the point at infinity.
+    ///
+    /// If `x` and `y` are both zero, the curve identity is returned; otherwise the point is returned with `z = 1`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::short_weierstrass::{WeierstrassCurve, SWPoint};
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let b = FieldElement::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params);
+    ///
+    /// let x = FieldElement::one(&params);
+    /// let y = FieldElement::one(&params);
+    /// let p = SWPoint::new_affine(x, y, &curve);
+    /// // Note: (1,1) might not be on the curve y^2 = x^3 + x + 1 mod 17, but new_affine constructs it anyway.
+    /// assert!(!p.is_identity());
+    ///
+    /// let z0 = FieldElement::zero(&params);
+    /// let id = SWPoint::new_affine(z0.clone(), z0, &curve);
+    /// assert!(id.is_identity());
+    /// ```
     pub fn new_affine(
         x: FieldElement<'a>,
         y: FieldElement<'a>,
         curve: &'a WeierstrassCurve<'a>,
     ) -> Self {
         if x.value == U1024::zero() && y.value == U1024::zero() {
-            return Self::identity(curve);
+            return curve.identity();
         }
         let z = FieldElement::one(curve.params);
-        Self { x, y, z, curve }
-    }
-
-    pub fn identity(curve: &'a WeierstrassCurve<'a>) -> Self {
-        let zero = FieldElement::zero(curve.params);
-        let one = FieldElement::one(curve.params);
         Self {
-            x: one,
-            y: one,
-            z: zero,
-            curve,
+            x,
+            y,
+            z,
+            curve: curve.clone(),
         }
     }
 }
 
 impl<'a> ProjectivePoint for SWPoint<'a> {
-    fn identity() -> Self {
-        panic!("Use SWPoint::identity(curve) instead because we need curve reference");
-    }
-
+    /// Checks whether this point is the identity (point at infinity).
+    ///
+    /// The point is considered the identity when its projective `z` coordinate is zero.
+    ///
+    /// # Returns
+    ///
+    /// `true` if the point's `z` coordinate equals zero, `false` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::short_weierstrass::WeierstrassCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let b = FieldElement::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params);
+    ///
+    /// let id = curve.identity();
+    /// assert!(id.is_identity());
+    /// ```
     fn is_identity(&self) -> bool {
         self.z.value == U1024::zero()
     }
 
+    /// Adds two points on the Weierstrass curve using projective coordinates.
+    ///
+    /// Performs elliptic-curve point addition in projective form and returns the resulting point.
+    /// If either operand is the identity, the other operand is returned. If the points are
+    /// inverses of each other, the curve identity is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::short_weierstrass::WeierstrassCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let b = FieldElement::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params);
+    ///
+    /// let p = curve.identity();
+    /// let q = curve.identity();
+    /// let r = p.add(&q);
+    /// assert!(r.is_identity());
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// The projective `SWPoint` representing the sum of `self` and `rhs`.
     fn add(&self, rhs: &Self) -> Self {
         if self.is_identity() {
             return rhs.clone();
@@ -96,7 +237,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
             return if s1 == s2 {
                 self.double()
             } else {
-                Self::identity(self.curve)
+                self.curve.identity()
             };
         }
 
@@ -118,10 +259,32 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
             x: x3,
             y: y3,
             z: z3,
-            curve: self.curve,
+            curve: self.curve.clone(),
         }
     }
 
+    /// Doubles this point on its associated Weierstrass curve using projective coordinates.
+    ///
+    /// Returns the point 2P; if this point is the identity (point at infinity), returns a clone of it.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::short_weierstrass::WeierstrassCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let b = FieldElement::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params);
+    ///
+    /// let p = curve.identity();
+    /// let r = p.double();
+    /// assert!(r.is_identity());
+    /// ```
     fn double(&self) -> Self {
         if self.is_identity() {
             return self.clone();
@@ -151,10 +314,34 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
             x: x_new,
             y: y_new,
             z: z_new,
-            curve: self.curve,
+            curve: self.curve.clone(),
         }
     }
 
+    /// Convert this projective point to affine coordinates.
+    ///
+    /// Returns a pair `(x, y)` representing the affine coordinates of the point. If the point is the
+    /// identity (point at infinity), returns `(0, 0)`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::short_weierstrass::WeierstrassCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let b = FieldElement::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params);
+    ///
+    /// let p = curve.identity();
+    /// let (x, y) = p.to_affine();
+    /// assert_eq!(x, FieldElement::zero(&params));
+    /// assert_eq!(y, FieldElement::zero(&params));
+    /// ```
     fn to_affine(&self) -> (FieldElement<'a>, FieldElement<'a>) {
         if self.is_identity() {
             let zero = FieldElement::zero(self.curve.params);
@@ -169,5 +356,41 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
         let y_aff = self.y * z3_inv;
 
         (x_aff, y_aff)
+    }
+
+    /// Multiplies this point by a 1024-bit scalar using the double-and-add algorithm.
+    ///
+    /// The operation returns k * P where k is `scalar` and P is `self`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use curvelib::models::short_weierstrass::{WeierstrassCurve, SWPoint};
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    ///
+    /// let p = U1024::from_u64(17);
+    /// let params = MontgomeryParams::new(p, U1024::zero());
+    /// let a = FieldElement::new(U1024::from_u64(1), &params);
+    /// let b = FieldElement::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params);
+    ///
+    /// let p = curve.identity();
+    /// let k = U1024::from_u64(3);
+    /// let r = p.mul(&k);
+    /// assert!(r.is_identity());
+    /// ```
+    fn mul(&self, scalar: &U1024) -> Self {
+        let mut res = self.curve.identity();
+
+        let num_bits = scalar.bits();
+        for i in (0..num_bits).rev() {
+            res = res.double();
+            if scalar.bit(i) {
+                res = res.add(self);
+            }
+        }
+        res
     }
 }

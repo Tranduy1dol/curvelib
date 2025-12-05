@@ -40,8 +40,8 @@ checksum = "37c93d8daa9d8a012fd8ab92f088405fb202ea0b6ab73ee2482ae66af4f42091"
 
 [[package]]
 name = "mathlib"
-version = "0.2.0"
-source = "git+https://github.com/Tranduy1dol/mathlib#9ea3a6ecfe37687051bb1bfa5d05bccf57423517"
+version = "0.2.1"
+source = "git+https://github.com/Tranduy1dol/mathlib#1b0bf21e7c3ff0ac3ff4f34ea7241b49fca20d46"
 dependencies = [
  "cfg-if",
  "libc",
