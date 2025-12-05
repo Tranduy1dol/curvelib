@@ -42,6 +42,27 @@ fn test_tiny_jubjub_addition() {
     println!("2 * (1,2) = ({:?}, {:?})", x.to_u1024(), y.to_u1024());
 }
 
+/// Verifies that doubling the identity point on a Weierstrass curve produces the identity point.
+///
+/// # Examples
+///
+/// ```
+/// use mathlib::{U1024, MontgomeryParams, FieldElement};
+/// use short_weierstrass::WeierstrassCurve;
+///
+/// let mut p_val = U1024::zero();
+/// p_val.0[0] = 43;
+/// let params = MontgomeryParams::new(p_val, U1024::zero());
+///
+/// let a = FieldElement::new(U1024::from_u64(23), &params);
+/// let b = FieldElement::new(U1024::from_u64(42), &params);
+/// let curve = WeierstrassCurve::new(a, b, &params);
+///
+/// let g = curve.identity();
+/// let g2 = g.double();
+///
+/// assert!(g2.is_identity());
+/// ```
 #[test]
 fn test_tiny_curve_operations() {
     let mut p_val = U1024::zero();
