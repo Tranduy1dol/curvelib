@@ -1,7 +1,7 @@
 use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
 use mathlib::{BigInt, U1024};
 
-use crate::traits::ProjectivePoint;
+use crate::traits::{Curve, ProjectivePoint};
 
 #[derive(Clone, Debug)]
 pub struct WeierstrassCurve<'a> {
@@ -13,6 +13,31 @@ pub struct WeierstrassCurve<'a> {
 impl<'a> WeierstrassCurve<'a> {
     pub fn new(a: FieldElement<'a>, b: FieldElement<'a>, params: &'a MontgomeryParams) -> Self {
         Self { a, b, params }
+    }
+}
+
+impl<'a> Curve<'a> for &'a WeierstrassCurve<'a> {
+    type Point = SWPoint<'a>;
+
+    fn identity(&self) -> Self::Point {
+        let curve = *self;
+        let one = FieldElement::one(curve.params);
+        let zero = FieldElement::zero(curve.params);
+        SWPoint {
+            x: one,
+            y: one,
+            z: zero,
+            curve,
+        }
+    }
+
+    fn is_on_curve(&self, x: &FieldElement, y: &FieldElement) -> bool {
+        let y2 = *y * *y;
+        let x2 = *x * *x;
+        let x3 = x2 * *x;
+        let ax = self.a * *x;
+        let rhs = x3 + ax + self.b;
+        y2 == rhs
     }
 }
 
@@ -67,10 +92,6 @@ impl<'a> SWPoint<'a> {
 }
 
 impl<'a> ProjectivePoint for SWPoint<'a> {
-    fn identity() -> Self {
-        panic!("Use SWPoint::identity(curve) instead because we need curve reference");
-    }
-
     fn is_identity(&self) -> bool {
         self.z.value == U1024::zero()
     }
@@ -169,5 +190,18 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
         let y_aff = self.y * z3_inv;
 
         (x_aff, y_aff)
+    }
+
+    fn mul(&self, scalar: &U1024) -> Self {
+        let mut res = Self::identity(self.curve);
+
+        let num_bits = scalar.bits();
+        for i in (0..num_bits).rev() {
+            res = res.double();
+            if scalar.bit(i) {
+                res = res.add(self);
+            }
+        }
+        res
     }
 }

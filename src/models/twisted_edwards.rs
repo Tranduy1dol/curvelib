@@ -71,8 +71,16 @@ impl<'a> TePoint<'a> {
 }
 
 impl<'a> ProjectivePoint for TePoint<'a> {
-    fn identity() -> Self {
-        panic!("Use TePoint::identity(curve)");
+    fn mul(&self, scalar: &U1024) -> Self {
+        let mut res = Self::identity(self.curve);
+
+        for i in (0..1024).rev() {
+            res = res.double();
+            if scalar.bit(i) {
+                res = res.add(self);
+            }
+        }
+        res
     }
 
     fn is_identity(&self) -> bool {
