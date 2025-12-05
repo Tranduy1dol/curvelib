@@ -1,6 +1,8 @@
-use curvelib::curves::tiny_jubjub;
-use curvelib::models::twisted_edwards::TePoint;
-use curvelib::traits::ProjectivePoint;
+use curvelib::{
+    curves::tiny_jubjub,
+    models::twisted_edwards::TePoint,
+    traits::{Curve, ProjectivePoint},
+};
 use mathlib::{BigInt, FieldElement, U1024};
 
 #[test]
@@ -8,10 +10,18 @@ fn test_scalar_multiplication() {
     let curve = tiny_jubjub::get_curve();
     let params = curve.params;
 
+    // Valid point on tiny_jubjub: (3, 0)
+    // 3*3^2 + 0^2 = 27 = 1 mod 13
+    // 1 + 8*3^2*0^2 = 1 mod 13
     let p = TePoint::new_affine(
-        FieldElement::new(U1024::from_u64(1), params),
-        FieldElement::new(U1024::from_u64(2), params),
+        FieldElement::new(U1024::from_u64(3), params),
+        FieldElement::new(U1024::from_u64(0), params),
         &curve,
+    );
+
+    assert!(
+        curve.is_on_curve(&p.x, &p.y),
+        "Point must be on the curve"
     );
 
     let scalar_2 = U1024::from_u64(2);

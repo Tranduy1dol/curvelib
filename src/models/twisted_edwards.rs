@@ -2,7 +2,35 @@ use mathlib::field::element::FieldElement;
 use mathlib::field::montgomery::MontgomeryParams;
 use mathlib::{BigInt, U1024};
 
-use crate::traits::ProjectivePoint;
+use crate::traits::{Curve, ProjectivePoint};
+
+impl<'a> Curve<'a> for EdwardsCurve<'a> {
+    type Point = TePoint<'a>;
+
+    fn identity(&self) -> Self::Point {
+        let curve = self.clone();
+        let zero = FieldElement::zero(self.params);
+        let one = FieldElement::one(self.params);
+        TePoint {
+            x: zero,
+            y: one,
+            z: one,
+            t: zero,
+            curve,
+        }
+    }
+
+    fn is_on_curve(&self, x: &FieldElement, y: &FieldElement) -> bool {
+        let x2 = *x * *x;
+        let y2 = *y * *y;
+        let lhs = (self.a * x2) + y2;
+
+        let one = FieldElement::one(self.params);
+        let rhs = one + (self.d * x2 * y2);
+
+        lhs == rhs
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct EdwardsCurve<'a> {
@@ -23,7 +51,7 @@ pub struct TePoint<'a> {
     pub y: FieldElement<'a>,
     pub z: FieldElement<'a>,
     pub t: FieldElement<'a>,
-    pub curve: &'a EdwardsCurve<'a>,
+    pub curve: EdwardsCurve<'a>,
 }
 
 impl<'a> PartialEq for TePoint<'a> {
@@ -54,80 +82,20 @@ impl<'a> TePoint<'a> {
     ) -> Self {
         let z = FieldElement::one(curve.params);
         let t = x * y;
-        Self { x, y, z, t, curve }
-    }
-
-    pub fn identity(curve: &'a EdwardsCurve<'a>) -> Self {
-        let zero = FieldElement::zero(curve.params);
-        let one = FieldElement::one(curve.params);
         Self {
-            x: zero,
-            y: one,
-            z: one,
-            t: zero,
-            curve,
+            x,
+            y,
+            z,
+            t,
+            curve: curve.clone(),
         }
     }
 }
 
 impl<'a> ProjectivePoint for TePoint<'a> {
-    fn mul(&self, scalar: &U1024) -> Self {
-        let mut res = Self::identity(self.curve);
-
-        for i in (0..1024).rev() {
-            res = res.double();
-            if scalar.bit(i) {
-                res = res.add(self);
-            }
-        }
-        res
-    }
-
     fn is_identity(&self) -> bool {
         let zero = FieldElement::zero(self.curve.params);
         self.x == zero && self.y == self.z
-    }
-
-    fn to_affine(&self) -> (FieldElement<'a>, FieldElement<'a>) {
-        if self.z.value == U1024::zero() {
-            let zero = FieldElement::zero(self.curve.params);
-            let one = FieldElement::one(self.curve.params);
-            return (zero, one);
-        }
-
-        let z_inv = self.z.inv();
-        let x_aff = self.x * z_inv;
-        let y_aff = self.y * z_inv;
-        (x_aff, y_aff)
-    }
-
-    fn double(&self) -> Self {
-        let a = self.x * self.x;
-        let b = self.y * self.y;
-        let two = FieldElement::new(U1024::from_u64(2), self.curve.params);
-        let c = two * (self.z * self.z);
-
-        let d = self.curve.a * a;
-
-        let x_plus_y = self.x + self.y;
-        let e = (x_plus_y * x_plus_y) - a - b;
-
-        let g = d + b;
-        let f = g - c;
-        let h = d - b;
-
-        let x3 = e * f;
-        let y3 = g * h;
-        let t3 = e * h;
-        let z3 = f * g;
-
-        Self {
-            x: x3,
-            y: y3,
-            z: z3,
-            t: t3,
-            curve: self.curve,
-        }
     }
 
     fn add(&self, rhs: &Self) -> Self {
@@ -158,7 +126,61 @@ impl<'a> ProjectivePoint for TePoint<'a> {
             y: y3,
             z: z3,
             t: t3,
-            curve: self.curve,
+            curve: self.curve.clone(),
         }
+    }
+
+    fn double(&self) -> Self {
+        let a = self.x * self.x;
+        let b = self.y * self.y;
+        let two = FieldElement::new(U1024::from_u64(2), self.curve.params);
+        let c = two * (self.z * self.z);
+
+        let d = self.curve.a * a;
+
+        let x_plus_y = self.x + self.y;
+        let e = (x_plus_y * x_plus_y) - a - b;
+
+        let g = d + b;
+        let f = g - c;
+        let h = d - b;
+
+        let x3 = e * f;
+        let y3 = g * h;
+        let t3 = e * h;
+        let z3 = f * g;
+
+        Self {
+            x: x3,
+            y: y3,
+            z: z3,
+            t: t3,
+            curve: self.curve.clone(),
+        }
+    }
+
+    fn to_affine(&self) -> (FieldElement<'a>, FieldElement<'a>) {
+        if self.z.value == U1024::zero() {
+            let zero = FieldElement::zero(self.curve.params);
+            let one = FieldElement::one(self.curve.params);
+            return (zero, one);
+        }
+
+        let z_inv = self.z.inv();
+        let x_aff = self.x * z_inv;
+        let y_aff = self.y * z_inv;
+        (x_aff, y_aff)
+    }
+
+    fn mul(&self, scalar: &U1024) -> Self {
+        let mut res = self.curve.identity();
+
+        for i in (0..1024).rev() {
+            res = res.double();
+            if scalar.bit(i) {
+                res = res.add(self);
+            }
+        }
+        res
     }
 }

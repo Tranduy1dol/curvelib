@@ -16,11 +16,11 @@ impl<'a> WeierstrassCurve<'a> {
     }
 }
 
-impl<'a> Curve<'a> for &'a WeierstrassCurve<'a> {
+impl<'a> Curve<'a> for WeierstrassCurve<'a> {
     type Point = SWPoint<'a>;
 
     fn identity(&self) -> Self::Point {
-        let curve = *self;
+        let curve = self.clone();
         let one = FieldElement::one(curve.params);
         let zero = FieldElement::zero(curve.params);
         SWPoint {
@@ -46,7 +46,7 @@ pub struct SWPoint<'a> {
     pub x: FieldElement<'a>,
     pub y: FieldElement<'a>,
     pub z: FieldElement<'a>,
-    pub curve: &'a WeierstrassCurve<'a>,
+    pub curve: WeierstrassCurve<'a>,
 }
 
 impl<'a> PartialEq for SWPoint<'a> {
@@ -73,20 +73,14 @@ impl<'a> SWPoint<'a> {
         curve: &'a WeierstrassCurve<'a>,
     ) -> Self {
         if x.value == U1024::zero() && y.value == U1024::zero() {
-            return Self::identity(curve);
+            return curve.identity();
         }
         let z = FieldElement::one(curve.params);
-        Self { x, y, z, curve }
-    }
-
-    pub fn identity(curve: &'a WeierstrassCurve<'a>) -> Self {
-        let zero = FieldElement::zero(curve.params);
-        let one = FieldElement::one(curve.params);
         Self {
-            x: one,
-            y: one,
-            z: zero,
-            curve,
+            x,
+            y,
+            z,
+            curve: curve.clone(),
         }
     }
 }
@@ -117,7 +111,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
             return if s1 == s2 {
                 self.double()
             } else {
-                Self::identity(self.curve)
+                self.curve.identity()
             };
         }
 
@@ -139,7 +133,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
             x: x3,
             y: y3,
             z: z3,
-            curve: self.curve,
+            curve: self.curve.clone(),
         }
     }
 
@@ -172,7 +166,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
             x: x_new,
             y: y_new,
             z: z_new,
-            curve: self.curve,
+            curve: self.curve.clone(),
         }
     }
 
@@ -193,7 +187,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     }
 
     fn mul(&self, scalar: &U1024) -> Self {
-        let mut res = Self::identity(self.curve);
+        let mut res = self.curve.identity();
 
         let num_bits = scalar.bits();
         for i in (0..num_bits).rev() {

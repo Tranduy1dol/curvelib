@@ -1,10 +1,7 @@
 use curvelib::{
     curves::tiny_jubjub,
-    models::{
-        short_weierstrass::{SWPoint, WeierstrassCurve},
-        twisted_edwards::TePoint,
-    },
-    traits::ProjectivePoint,
+    models::{short_weierstrass::WeierstrassCurve, twisted_edwards::TePoint},
+    traits::{Curve, ProjectivePoint},
 };
 use mathlib::{
     BigInt, U1024,
@@ -55,7 +52,7 @@ fn test_tiny_curve_operations() {
     let b = FieldElement::new(U1024::from_u64(42), &params);
     let curve = WeierstrassCurve::new(a, b, &params);
 
-    let g = SWPoint::identity(&curve);
+    let g = curve.identity();
     let g2 = g.double();
 
     assert!(g2.is_identity(), "Double infinity must be infinity");
