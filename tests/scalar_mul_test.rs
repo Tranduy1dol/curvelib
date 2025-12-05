@@ -19,10 +19,7 @@ fn test_scalar_multiplication() {
         &curve,
     );
 
-    assert!(
-        curve.is_on_curve(&p.x, &p.y),
-        "Point must be on the curve"
-    );
+    assert!(curve.is_on_curve(&p.x, &p.y), "Point must be on the curve");
 
     let scalar_2 = U1024::from_u64(2);
     let mul_2 = p.mul(&scalar_2);
