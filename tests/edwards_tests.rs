@@ -71,7 +71,14 @@ fn test_tiny_curve_operations() {
 
     let a = FieldElement::new(U1024::from_u64(23), &params);
     let b = FieldElement::new(U1024::from_u64(42), &params);
-    let curve = WeierstrassCurve::new(a, b, &params);
+    let curve = WeierstrassCurve::new(
+        a,
+        b,
+        &params,
+        &params,
+        U1024::from_u64(1),
+        U1024::from_u64(1),
+    );
 
     let g = curve.identity();
     let g2 = g.double();

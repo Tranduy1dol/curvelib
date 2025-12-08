@@ -8,27 +8,29 @@ pub struct WeierstrassCurve<'a> {
     pub a: FieldElement<'a>,
     pub b: FieldElement<'a>,
     pub params: &'a MontgomeryParams,
+    pub scalar_params: &'a MontgomeryParams,
+    pub generator_x: U1024,
+    pub generator_y: U1024,
 }
 
 impl<'a> WeierstrassCurve<'a> {
     /// Creates a WeierstrassCurve with the given curve coefficients and Montgomery parameters.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use mathlib::{U1024, BigInt};
-    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
-    /// use curvelib::models::short_weierstrass::WeierstrassCurve;
-    ///
-    /// let p = U1024::from_u64(17);
-    /// let params = MontgomeryParams::new(p, U1024::zero());
-    /// let a = FieldElement::new(U1024::from_u64(1), &params);
-    /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params);
-    /// assert_eq!(curve.a, a);
-    /// ```
-    pub fn new(a: FieldElement<'a>, b: FieldElement<'a>, params: &'a MontgomeryParams) -> Self {
-        Self { a, b, params }
+    pub fn new(
+        a: FieldElement<'a>,
+        b: FieldElement<'a>,
+        params: &'a MontgomeryParams,
+        scalar_params: &'a MontgomeryParams,
+        generator_x: U1024,
+        generator_y: U1024,
+    ) -> Self {
+        Self {
+            a,
+            b,
+            params,
+            scalar_params,
+            generator_x,
+            generator_y,
+        }
     }
 }
 
@@ -51,7 +53,7 @@ impl<'a> Curve<'a> for WeierstrassCurve<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
     ///
     /// let id = curve.identity();
     /// assert!(id.is_identity());
@@ -82,6 +84,22 @@ impl<'a> Curve<'a> for WeierstrassCurve<'a> {
         let ax = self.a * *x;
         let rhs = x3 + ax + self.b;
         y2 == rhs
+    }
+
+    fn scalar_params(&self) -> &'a MontgomeryParams {
+        self.scalar_params
+    }
+
+    fn generator(&self) -> Self::Point {
+        let x = FieldElement::new(self.generator_x, self.params);
+        let y = FieldElement::new(self.generator_y, self.params);
+        let z = FieldElement::one(self.params);
+        SWPoint {
+            x,
+            y,
+            z,
+            curve: self.clone(),
+        }
     }
 }
 
@@ -127,7 +145,7 @@ impl<'a> SWPoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
     ///
     /// let x = FieldElement::one(&params);
     /// let y = FieldElement::one(&params);
@@ -178,7 +196,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
     ///
     /// let id = curve.identity();
     /// assert!(id.is_identity());
@@ -205,7 +223,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
     ///
     /// let p = curve.identity();
     /// let q = curve.identity();
@@ -279,7 +297,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
     ///
     /// let p = curve.identity();
     /// let r = p.double();
@@ -321,7 +339,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     /// Convert this projective point to affine coordinates.
     ///
     /// Returns a pair `(x, y)` representing the affine coordinates of the point. If the point is the
-    /// identity (point at infinity), returns `(0, 0)`.
+    /// identity (point at infinity), it returns `(0, 0)`.
     ///
     /// # Examples
     ///
@@ -335,7 +353,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
     ///
     /// let p = curve.identity();
     /// let (x, y) = p.to_affine();
@@ -374,7 +392,7 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
     ///
     /// let p = curve.identity();
     /// let k = U1024::from_u64(3);

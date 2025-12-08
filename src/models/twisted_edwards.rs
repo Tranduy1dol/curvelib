@@ -23,7 +23,7 @@ impl<'a> Curve<'a> for EdwardsCurve<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let d = FieldElement::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
     ///
     /// let id = curve.identity();
     /// let (x, y) = id.to_affine();
@@ -59,7 +59,7 @@ impl<'a> Curve<'a> for EdwardsCurve<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let d = FieldElement::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
     ///
     /// let x = FieldElement::zero(&params);
     /// let y = FieldElement::one(&params);
@@ -75,6 +75,24 @@ impl<'a> Curve<'a> for EdwardsCurve<'a> {
 
         lhs == rhs
     }
+
+    fn scalar_params(&self) -> &'a MontgomeryParams {
+        self.scalar_params
+    }
+
+    fn generator(&self) -> Self::Point {
+        let x = FieldElement::new(self.generator_x, self.params);
+        let y = FieldElement::new(self.generator_y, self.params);
+        let z = FieldElement::one(self.params);
+        let t = x * y;
+        TePoint {
+            x,
+            y,
+            z,
+            t,
+            curve: self.clone(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -82,11 +100,28 @@ pub struct EdwardsCurve<'a> {
     pub a: FieldElement<'a>,
     pub d: FieldElement<'a>,
     pub params: &'a MontgomeryParams,
+    pub scalar_params: &'a MontgomeryParams,
+    pub generator_x: U1024,
+    pub generator_y: U1024,
 }
 
 impl<'a> EdwardsCurve<'a> {
-    pub fn new(a: FieldElement<'a>, d: FieldElement<'a>, params: &'a MontgomeryParams) -> Self {
-        Self { a, d, params }
+    pub fn new(
+        a: FieldElement<'a>,
+        d: FieldElement<'a>,
+        params: &'a MontgomeryParams,
+        scalar_params: &'a MontgomeryParams,
+        generator_x: U1024,
+        generator_y: U1024,
+    ) -> Self {
+        Self {
+            a,
+            d,
+            params,
+            scalar_params,
+            generator_x,
+            generator_y,
+        }
     }
 }
 
@@ -137,7 +172,7 @@ impl<'a> TePoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let d = FieldElement::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
     ///
     /// let x = FieldElement::zero(&params);
     /// let y = FieldElement::one(&params);
@@ -184,7 +219,7 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let d = FieldElement::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
     ///
     /// let id = TePoint::new_affine(FieldElement::zero(&params), FieldElement::one(&params), &curve);
     /// assert!(id.is_identity());
@@ -211,7 +246,7 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let d = FieldElement::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
     ///
     /// let p = curve.identity();
     /// let q = curve.identity();
@@ -266,7 +301,7 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let d = FieldElement::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
     ///
     /// let point = curve.identity();
     /// let doubled = point.double();
@@ -303,7 +338,7 @@ impl<'a> ProjectivePoint for TePoint<'a> {
 
     /// Converts this projective/extended point to affine coordinates.
     ///
-    /// If the point is the projective identity (z == 0) this returns the affine identity `(0, 1)`.
+    /// If the point is the projective identity (z == 0), this returns the affine identity `(0, 1)`.
     ///
     /// # Returns
     ///
@@ -321,7 +356,7 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let d = FieldElement::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
     ///
     /// let p = curve.identity();
     /// let (x, y) = p.to_affine();
@@ -355,7 +390,7 @@ impl<'a> ProjectivePoint for TePoint<'a> {
     /// let params = MontgomeryParams::new(p, U1024::zero());
     /// let a = FieldElement::new(U1024::from_u64(1), &params);
     /// let d = FieldElement::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
     ///
     /// let p = curve.identity();
     /// let k = U1024::zero();
