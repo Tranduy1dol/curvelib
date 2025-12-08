@@ -1,10 +1,15 @@
 use std::fmt;
 
+/// Errors that can occur during ECDSA signature generation.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SignatureError {
+    /// The private key provided is invalid (e.g., zero or >= curve order n).
     InvalidPrivateKey,
+    /// The nonce provided is invalid (e.g., zero or >= curve order n).
     InvalidNonce,
-    SignatureGenerationFailed, // For example if r or s is zero
+    /// Signature generation failed due to a transient error (e.g. r or s computed to zero).
+    /// This is statistically rare but can happen; retrying usually resolves it.
+    SignatureGenerationFailed,
 }
 
 impl fmt::Display for SignatureError {
