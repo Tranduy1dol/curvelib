@@ -64,6 +64,7 @@ fn test_ecdsa_different_message() {
     assert!(!valid, "Signature should not verify for wrong message");
 }
 
+#[cfg(feature = "test")]
 #[test]
 fn test_ecdsa_deterministic_failure() {
     // This tests the test-only API for deterministic nonces

@@ -122,6 +122,7 @@ pub trait Curve<'a>: Clone + Debug {
     /// This method allows specifying the nonce k manually.
     /// REUSING A NONCE COMPLETELY COMPROMISES THE PRIVATE KEY.
     /// DO NOT USE UNLESS YOU KNOW EXACTLY WHAT YOU ARE DOING.
+    #[cfg(feature = "test")]
     fn sign_with_nonce(
         &self,
         message_hash: &U1024,
@@ -175,6 +176,21 @@ pub trait Curve<'a>: Clone + Debug {
         let scalar_params = self.scalar_params();
         let generator = self.generator();
         let n = &scalar_params.modulus;
+
+        if pub_key.is_identity() {
+            return false;
+        }
+
+        if !self.is_on_curve(&pub_key.to_affine().0, &pub_key.to_affine().1) {
+            return false;
+        }
+
+        // Defend against low-order subgroup attacks
+        // Check if n * Q == Infinity
+        let q_n = pub_key.mul(n);
+        if !q_n.is_identity() {
+            return false;
+        }
 
         if signature.r == U1024::zero() || signature.r >= *n {
             return false;
