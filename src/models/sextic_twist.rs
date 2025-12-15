@@ -17,8 +17,24 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     ///
     /// # Examples
     ///
-    /// ```ignore
-    /// let curve = SexticTwist::default(); // obtain a SexticTwist instance appropriate for your context
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::models::SexticTwist;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::field::montgomery::MontgomeryParams;
+    /// use mathlib::{BigInt, FieldElement, U1024};
+    ///
+    /// // Build a tiny, self-contained SexticTwist instance over F_13.
+    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let zero = Fp::from(FieldElement::zero(&params));
+    /// let one = Fp::from(FieldElement::one(&params));
+    ///
+    /// let a = Fp2::new(zero, zero); // a = 0
+    /// let b = Fp2::new(one, zero);  // b = 1
+    /// let gx = Fp2::new(zero, zero);
+    /// let gy = Fp2::new(one, zero);
+    ///
+    /// let curve = SexticTwist::new(a, b, &params, &params, gx, gy);
     /// let inf = curve.identity();
     /// assert!(inf.is_identity());
     /// ```
@@ -45,11 +61,25 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Obtain the curve and its generator, convert the generator to affine coordinates,
-    /// // and verify it lies on the curve.
-    /// let curve = SexticTwist::generator().curve.clone();
-    /// let (x, y) = SexticTwist::generator().to_affine();
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::models::SexticTwist;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::field::montgomery::MontgomeryParams;
+    /// use mathlib::{BigInt, FieldElement, U1024};
+    ///
+    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let zero = Fp::from(FieldElement::zero(&params));
+    /// let one = Fp::from(FieldElement::one(&params));
+    ///
+    /// // Curve: y^2 = x^3 + 1, and choose affine point (0, 1).
+    /// let a = Fp2::new(zero, zero);
+    /// let b = Fp2::new(one, zero);
+    /// let gx = Fp2::new(zero, zero);
+    /// let gy = Fp2::new(one, zero);
+    /// let curve = SexticTwist::new(a, b, &params, &params, gx, gy);
+    ///
+    /// let (x, y) = curve.generator().to_affine();
     /// assert!(curve.is_on_curve(&x, &y));
     /// ```
     fn is_on_curve(
@@ -75,10 +105,26 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // `curve` is a `SexticTwist` instance
-    /// let params = curve.scalar_params();
-    /// let _ = params;
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::models::SexticTwist;
+    /// use curvelib::traits::Curve;
+    /// use mathlib::field::montgomery::MontgomeryParams;
+    /// use mathlib::{BigInt, FieldElement, U1024};
+    ///
+    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let zero = Fp::from(FieldElement::zero(&params));
+    /// let one = Fp::from(FieldElement::one(&params));
+    /// let curve = SexticTwist::new(
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    ///     &params,
+    ///     &params,
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    /// );
+    /// let sp = curve.scalar_params();
+    /// assert_eq!(sp.modulus, U1024::from_u64(13));
     /// ```
     fn scalar_params(&self) -> &'a MontgomeryParams {
         self.scalar_params
@@ -91,11 +137,26 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Given an existing `SexticTwist` instance `curve`, obtain its generator:
-    /// let curve = /* obtain or construct a SexticTwist instance */ unimplemented!();
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::models::SexticTwist;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::field::montgomery::MontgomeryParams;
+    /// use mathlib::{BigInt, FieldElement, U1024};
+    ///
+    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let zero = Fp::from(FieldElement::zero(&params));
+    /// let one = Fp::from(FieldElement::one(&params));
+    ///
+    /// let curve = SexticTwist::new(
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    ///     &params,
+    ///     &params,
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    /// );
     /// let g = curve.generator();
-    /// // `g` is the affine generator embedded in projective coordinates (Z = 1).
     /// assert!(!g.is_identity());
     /// ```
     fn generator(&self) -> Self::Point {
@@ -137,11 +198,29 @@ impl<'a> PartialEq for STPoint<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Given STPoint::new and a curve instance:
-    /// // let p = STPoint::new(x1, y1, z1, curve.clone());
-    /// // let q = STPoint::new(x2, y2, z2, curve.clone());
-    /// // assert_eq!(p == q, p.eq(&q));
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::models::{SexticTwist, STPoint};
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::field::montgomery::MontgomeryParams;
+    /// use mathlib::{BigInt, FieldElement, U1024};
+    ///
+    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let zero = Fp::from(FieldElement::zero(&params));
+    /// let one = Fp::from(FieldElement::one(&params));
+    /// let curve = SexticTwist::new(
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    ///     &params,
+    ///     &params,
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    /// );
+    ///
+    /// let p = curve.generator();
+    /// let q = STPoint::new(p.x, p.y, p.z, curve.clone());
+    /// assert_eq!(p, q);
+    /// assert!(p.eq(&q));
     /// ```
     fn eq(&self, other: &Self) -> bool {
         if self.is_identity() {
@@ -163,10 +242,29 @@ impl<'a> STPoint<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Create a point in Jacobian form and attach it to a curve:
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::models::{SexticTwist, STPoint};
+    /// use mathlib::field::montgomery::MontgomeryParams;
+    /// use mathlib::{BigInt, FieldElement, U1024};
+    ///
+    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let zero = Fp::from(FieldElement::zero(&params));
+    /// let one = Fp::from(FieldElement::one(&params));
+    /// let curve = SexticTwist::new(
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    ///     &params,
+    ///     &params,
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    /// );
+    ///
+    /// let x = Fp2::new(one, zero);
+    /// let y = Fp2::new(one, zero);
+    /// let z = Fp2::new(zero, zero);
     /// let p = STPoint::new(x, y, z, curve);
-    /// // `p.x`, `p.y`, `p.z` hold the provided coordinates and `p.curve` is `curve`.
+    /// let _ = p;
     /// ```
     pub fn new(x: Fp2<'a>, y: Fp2<'a>, z: Fp2<'a>, curve: SexticTwist<'a>) -> Self {
         Self { x, y, z, curve }
@@ -204,9 +302,26 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Given an STPoint `p`, returns true when `p` represents the point at infinity.
-    /// assert!(p.is_identity());
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::models::SexticTwist;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::field::montgomery::MontgomeryParams;
+    /// use mathlib::{BigInt, FieldElement, U1024};
+    ///
+    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let zero = Fp::from(FieldElement::zero(&params));
+    /// let one = Fp::from(FieldElement::one(&params));
+    /// let curve = SexticTwist::new(
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    ///     &params,
+    ///     &params,
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    /// );
+    /// let inf = curve.identity();
+    /// assert!(inf.is_identity());
     /// ```
     fn is_identity(&self) -> bool {
         // Z == 0 in Fp2
@@ -276,7 +391,7 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
     ///
     /// # Examples
     ///
-    /// ```rust,no_run
+    /// ```ignore
     /// // Given an existing STPoint `p` (for example obtained from a curve's generator),
     /// // compute its double.
     /// // let curve = SexticTwist::some_constructor(...);
@@ -337,15 +452,35 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
 
     /// Converts this Jacobian-coordinate point into affine coordinates over Fp2.
     ///
-    /// If the point is the identity (point-at-infinity), returns (0, 0) in Fp2.
-    /// Otherwise returns the pair (x_aff, y_aff) computed by multiplying X by Z^{-2}
+    /// If the point is the identity (point-at-infinity), it returns (0, 0) in Fp2.
+    /// Otherwise, returns the pair (x_aff, y_aff) computed by multiplying X by Z^{-2}
     /// and Y by Z^{-3}, where Z^{-1} is the multiplicative inverse of Z in Fp2.
     ///
     /// # Examples
     ///
-    /// ```
-    /// // given a projective point `pt: STPoint`
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::models::SexticTwist;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::field::montgomery::MontgomeryParams;
+    /// use mathlib::{BigInt, FieldElement, U1024};
+    ///
+    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let zero = Fp::from(FieldElement::zero(&params));
+    /// let one = Fp::from(FieldElement::one(&params));
+    /// let curve = SexticTwist::new(
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    ///     &params,
+    ///     &params,
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    /// );
+    ///
+    /// let pt = curve.identity();
     /// let (x_aff, y_aff) = pt.to_affine();
+    /// assert_eq!(x_aff, Fp2::new(zero, zero));
+    /// assert_eq!(y_aff, Fp2::new(zero, zero));
     /// ```
     fn to_affine(&self) -> (Self::Field, Self::Field) {
         if self.is_identity() {
@@ -373,10 +508,30 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // `p` is an STPoint and `k` is a mathlib::U1024 scalar.
-    /// // Multiply p by k:
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::models::SexticTwist;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::field::montgomery::MontgomeryParams;
+    /// use mathlib::{BigInt, FieldElement, U1024};
+    ///
+    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let zero = Fp::from(FieldElement::zero(&params));
+    /// let one = Fp::from(FieldElement::one(&params));
+    /// let curve = SexticTwist::new(
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    ///     &params,
+    ///     &params,
+    ///     Fp2::new(zero, zero),
+    ///     Fp2::new(one, zero),
+    /// );
+    ///
+    /// let p = curve.generator();
+    /// let k = U1024::from_u64(3);
     /// let r = p.mul(&k);
+    /// // group law sanity: 3P == P + P + P
+    /// assert_eq!(r, p.add(&p).add(&p));
     /// ```
     fn mul(&self, scalar: &mathlib::U1024) -> Self {
         let mut res = self.curve.identity();

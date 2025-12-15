@@ -11,14 +11,7 @@ use crate::{
 ///
 /// This returns the curve slope for the tangent case when `t == p` (λ = (3*x^2 + a) / (2*y)) or for
 /// the chord case when `t != p` (λ = (y2 - y1) / (x2 - x1)). If the denominator is zero (vertical
-/// tangent or vertical line) the function returns `Fp::zero(...)`.
-///
-/// # Examples
-///
-/// ```
-/// // Given G1Affine points `t` and `p` in scope:
-/// let lambda = calculate_slope(&t, &p);
-/// ```
+/// tangent or vertical line), the function returns `Fp::zero(...)`.
 fn calculate_slope<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>) -> Fp<'a> {
     let (x1, y1) = t.to_affine();
     let (x2, y2) = p.to_affine();
@@ -56,14 +49,6 @@ fn calculate_slope<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>) -> Fp<'a> {
 /// y_Q - y_T - lambda * (x_Q - x_T). Coordinates from Fp are lifted into Fp2 to match Q,
 /// and the resulting Fp2 value is placed in the c0 coefficient of the returned Fp6
 /// with c1 and c2 set to zero. If Q is projective (z ≠ 1) it is converted to affine first.
-///
-/// # Examples
-///
-/// ```no_run
-/// // Given `t: G1Affine`, `p: G1Affine`, `q: G2Projective` and appropriate params:
-/// let val: Fp6 = evaluate_line(&t, &p, &q);
-/// // `val` contains the embedding of l_{T,P}(Q) in Fp6 (c0 = value, c1 = c2 = 0).
-/// ```
 fn evaluate_line<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>, q: &G2Projective<'a>) -> Fp6<'a> {
     // Line: y - y1 - lambda(x - x1) = 0
     // => Val = y_Q - y_T - lambda * (x_Q - x_T)
@@ -115,14 +100,6 @@ fn evaluate_line<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>, q: &G2Projective<'a>) -
 /// Computes the Miller function value f_{r,P}(Q) for the given G1 point `p`, G2 point `q`, and scalar `r_order`.
 ///
 /// Returns the resulting element of Fp6 representing f_{r,P}(Q) computed by the Miller loop.
-///
-/// # Examples
-///
-/// ```no_run
-/// // Construct `p: G1Affine`, `q: G2Projective`, and `r_order: U1024` appropriately for your curve,
-/// // then compute the Miller loop value:
-/// // let result = miller_loop(&p, &q, r_order);
-/// ```
 pub fn miller_loop<'a>(p: &G1Affine<'a>, q: &G2Projective<'a>, r_order: U1024) -> Fp6<'a> {
     let params = p.curve.params;
 
@@ -155,9 +132,22 @@ pub fn miller_loop<'a>(p: &G1Affine<'a>, q: &G2Projective<'a>, r_order: U1024) -
 /// # Examples
 ///
 /// ```
-/// // `params` is a MontgomeryParams value available in scope.
-/// let xi = generate_xi_fp2(params);
-/// let expected = Fp2::new(Fp::from(FieldElement::zero(params)), Fp::from(FieldElement::one(params)));
+/// use curvelib::{
+///     algebra::fields::{Fp, Fp2},
+///     protocol::pairing::miller::generate_xi_fp2,
+///     traits::Field,
+/// };
+/// use mathlib::field::montgomery::MontgomeryParams;
+/// use mathlib::{BigInt, FieldElement, U1024};
+///
+/// let p_val = U1024::from_u64(43);
+/// let params = MontgomeryParams::new(p_val, U1024::zero());
+///
+/// let xi = generate_xi_fp2(&params);
+/// let expected = Fp2::new(
+///     Fp::from(FieldElement::zero(&params)),
+///     Fp::from(FieldElement::one(&params))
+/// );
 /// assert_eq!(xi, expected);
 /// ```
 pub fn generate_xi_fp2(params: &MontgomeryParams) -> Fp2<'_> {

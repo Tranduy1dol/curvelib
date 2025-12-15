@@ -24,10 +24,15 @@ pub trait Curve<'a>: Clone + Debug {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Given a curve `C` and a private scalar `d` (U1024):
-    /// // let pub = C.generate_keypair(&d);
-    /// // `pub` is the point d * G (the public key).
+    /// ```rust
+    /// use curvelib::instances::tiny_jubjub;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let curve = tiny_jubjub::get_curve();
+    /// let sk = U1024::from_u64(3);
+    /// let pk = curve.generate_keypair(&sk);
+    /// assert!(!pk.is_identity());
     /// ```
     fn generate_keypair(&self, private_key: &U1024) -> Self::Point {
         self.generator().mul(private_key)
@@ -36,7 +41,7 @@ pub trait Curve<'a>: Clone + Debug {
     /// Creates an ECDSA-style signature for `message_hash` using `priv_key`.
     ///
     /// The method validates the private key and produces a signature (r, s). It uses
-    /// a fresh cryptographic nonce for each attempt and will retry internally until
+    /// fresh cryptographic nonce for each attempt and will retry internally until
     /// a valid signature is produced or the private key is rejected.
     ///
     /// # Errors
@@ -46,16 +51,22 @@ pub trait Curve<'a>: Clone + Debug {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Example: sign a message hash with a private key and verify the returned Signature
-    /// # use crate::models::errors::SignatureError;
-    /// # use crate::models::signature::Signature;
-    /// # // assume `curve` implements the Curve trait and `msg`, `sk` are available U1024 values
-    /// # let curve = /* ... */ panic!();
-    /// # let msg = /* ... */ panic!();
-    /// # let sk = /* ... */ panic!();
-    /// let sig = curve.sign(&msg, &sk).expect("failed to sign");
-    /// // `sig` is a Signature containing `r` and `s` components
+    /// ```rust
+    /// # #[cfg(feature = "test")]
+    /// # {
+    /// use curvelib::instances::tiny_jubjub;
+    /// use curvelib::traits::Curve;
+    /// use mathlib::U1024;
+    ///
+    /// let curve = tiny_jubjub::get_curve();
+    /// let msg = U1024::from_u64(1);
+    /// let sk = U1024::from_u64(2);      // valid since scalar modulus is 5
+    /// let k  = U1024::from_u64(1);      // test nonce in [1, n-1]
+    ///
+    /// let sig = curve.sign_with_nonce(&msg, &sk, &k).expect("failed to sign");
+    /// assert_ne!(sig.r, U1024::zero());
+    /// assert_ne!(sig.s, U1024::zero());
+    /// # }
     /// ```
     fn sign(
         &self,
@@ -155,11 +166,11 @@ pub trait Curve<'a>: Clone + Debug {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// // Example (conceptual): sign deterministically with a test-only nonce.
     /// // let sig = curve.sign_with_nonce(&message_hash, &private_key, &k_nonce).unwrap();
     /// // assert!(sig.r != 0 && sig.s != 0);
-    /// ```
+    /// ```ignore
     #[cfg(feature = "test")]
     fn sign_with_nonce(
         &self,
@@ -222,9 +233,22 @@ pub trait Curve<'a>: Clone + Debug {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// // Given `curve`, `sig`, `msg_hash`, and `pub_key` constructed appropriately:
-    /// let valid = curve.verify(&sig, &msg_hash, &pub_key);
+    /// ```rust
+    /// # #[cfg(feature = "test")]
+    /// # {
+    /// use curvelib::instances::tiny_jubjub;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::U1024;
+    ///
+    /// let curve = tiny_jubjub::get_curve();
+    /// let msg = U1024::from_u64(1);
+    /// let sk = U1024::from_u64(2);
+    /// let k  = U1024::from_u64(1);
+    ///
+    /// let pk = curve.generate_keypair(&sk);
+    /// let sig = curve.sign_with_nonce(&msg, &sk, &k).unwrap();
+    /// assert!(curve.verify(&sig, &msg, &pk));
+    /// # }
     /// ```
     fn verify(&self, signature: &Signature, message_hash: &U1024, pub_key: &Self::Point) -> bool
     where
@@ -282,21 +306,4 @@ pub trait Curve<'a>: Clone + Debug {
 
 pub trait ToU1024 {
     fn to_u1024_val(&self) -> U1024;
-}
-
-impl<'a> ToU1024 for FieldElement<'a> {
-    /// Convert this field element into its canonical `U1024` representation.
-    ///
-    /// Produces a `U1024` integer containing the field element's canonical limb/value encoding.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// // obtain a FieldElement `fe` from your curve/field context
-    /// // let fe: FieldElement = ...;
-    /// // let u: U1024 = fe.to_u1024_val();
-    /// ```
-    fn to_u1024_val(&self) -> U1024 {
-        self.to_u1024()
-    }
 }

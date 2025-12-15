@@ -31,15 +31,27 @@ pub fn get_generator_coords() -> (U1024, U1024) {
     (U1024::from_u64(6), U1024::from_u64(9))
 }
 
-/// Tiny Jubjub twisted Edwards curve over F_13 with curve parameters a = 3 and d = 8.
+/// Tiny Jubjub Twisted Edwards curve over F_13 with curve parameters a = 3 and d = 8.
 ///
 /// The curve is constructed using the crate's tiny field and scalar parameters. The
 /// generator point used is (6, 9) (as U1024 values) and has order 5.
 ///
 /// # Examples
 ///
-/// ```
-/// let _curve = get_curve();
+/// ```rust
+/// use curvelib::instances::tiny_jubjub::{get_curve, get_generator_coords, get_scalar_params, get_tiny_params};
+/// use mathlib::{U1024, BigInt};
+///
+/// let curve = get_curve();
+///
+/// // sanity-check the parameters used by the instance
+/// assert_eq!(get_tiny_params().modulus, U1024::from_u64(13));
+/// assert_eq!(get_scalar_params().modulus, U1024::from_u64(5));
+/// assert_eq!(get_generator_coords(), (U1024::from_u64(6), U1024::from_u64(9)));
+///
+/// // and the curve wires the same params in
+/// assert_eq!(curve.params.modulus, U1024::from_u64(13));
+/// assert_eq!(curve.scalar_params.modulus, U1024::from_u64(5));
 /// ```
 pub fn get_curve() -> EdwardsCurve<'static> {
     let params = get_tiny_params();

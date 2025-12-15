@@ -15,7 +15,7 @@ use crate::{
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use mathlib::U1024;
 /// use crate::models::{sextic_twist::STPoint as G2Projective, short_weierstrass::SWPoint as G1Affine};
 /// use crate::protocol::pairing::tate_pairing;

@@ -13,11 +13,16 @@ impl<'a> Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Obtain or construct `MontgomeryParams` appropriate for your modulus.
-    /// let params = /* MontgomeryParams instance */ unimplemented!();
-    /// let value: U1024 = U1024::from(42u64);
-    /// let fp = Fp::new(value, &params);
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::ToU1024;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let value: U1024 = U1024::from_u64(42);
+    /// let fp = Fp::new(value, params);
+    /// assert_eq!(fp.to_u1024(), U1024::from_u64(3));
     /// ```
     pub fn new(value: U1024, params: &'a MontgomeryParams) -> Self {
         Self(FieldElement::new(value, params))
@@ -25,14 +30,19 @@ impl<'a> Fp<'a> {
 }
 
 impl<'a> From<FieldElement<'a>> for Fp<'a> {
-    /// Wraps a `FieldElement` value in the `Fp` newtype.
+    /// Wraps a `FieldElement` value in the `Fp` new type.
     ///
     /// # Examples
     ///
-    /// ```
-    /// // `fe` is a FieldElement obtained from library constructors.
-    /// let fe: FieldElement<'_> = /* ... */;
-    /// let fp: Fp = fe.into();
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use mathlib::{FieldElement, U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let fe: FieldElement<'_> = FieldElement::new(U1024::from_u64(7), params);
+    /// let fp: Fp<'_> = fe.into();
+    /// assert_eq!(fp.to_u1024(), U1024::from_u64(7));
     /// ```
     fn from(f: FieldElement<'a>) -> Self {
         Self(f)
@@ -48,12 +58,16 @@ impl<'a> Deref for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // `params` and `U1024` construction omitted for brevity.
-    /// let params = /* MontgomeryParams instance */;
-    /// let fp = Fp::new(U1024::from(1u64), &params);
+    /// ```rust
+    /// use std::ops::Deref;
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let fp = Fp::new(U1024::from_u64(1), params);
     /// let inner = fp.deref();
-    /// // `inner` can be used to read fields or call methods on `FieldElement`.
+    /// assert_eq!(inner.to_u1024(), U1024::from_u64(1));
     /// ```
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -68,9 +82,17 @@ impl<'a> Add for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // given two `Fp` values `a` and `b`
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp::new(U1024::from_u64(5), params);
+    /// let b = Fp::new(U1024::from_u64(9), params);
     /// let c = a + b;
+    /// // tiny field modulus is 13, so 5 + 9 = 14 ≡ 1 (mod 13)
+    /// assert_eq!(c.to_u1024(), U1024::from_u64(1));
     /// ```
     fn add(self, rhs: Self) -> Self {
         Self(self.0 + rhs.0)
@@ -83,9 +105,17 @@ impl<'a> Sub for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Given two `Fp` values `a` and `b`, compute their difference:
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp::new(U1024::from_u64(2), params);
+    /// let b = Fp::new(U1024::from_u64(5), params);
     /// let c = a - b;
+    /// // 2 - 5 ≡ -3 ≡ 10 (mod 13)
+    /// assert_eq!(c.to_u1024(), U1024::from_u64(10));
     /// ```
     fn sub(self, rhs: Self) -> Self {
         Self(self.0 - rhs.0)
@@ -98,11 +128,16 @@ impl<'a> Mul for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// let a = Fp::new(2u32.into(), params);
-    /// let b = Fp::new(3u32.into(), params);
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp::new(U1024::from_u64(2), params);
+    /// let b = Fp::new(U1024::from_u64(3), params);
     /// let c = a * b;
-    /// assert_eq!(c.to_u1024_val(), (2u32 * 3u32).into());
+    /// assert_eq!(c.to_u1024(), U1024::from_u64(6));
     /// ```
     fn mul(self, rhs: Self) -> Self {
         Self(self.0 * rhs.0)
@@ -115,11 +150,16 @@ impl<'a> Neg for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // let params = ...; // obtain MontgomeryParams for the field
-    /// // let a = Fp::new(3u32.into(), params);
-    /// // let neg_a = -a;
-    /// // assert_eq!(a + neg_a, Fp::zero(params));
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp::new(U1024::from_u64(3), params);
+    /// let neg_a = -a;
+    /// assert_eq!(a + neg_a, Fp::zero(params));
     /// ```
     fn neg(self) -> Self {
         let zero = FieldElement::zero(self.0.params);
@@ -132,9 +172,13 @@ impl<'a> Field<'a> for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // let params = MontgomeryParams::new(...);
-    /// let z = Fp::zero(&params);
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
+    /// let z = Fp::zero(params);
     /// assert!(z.is_zero());
     /// ```
     fn zero(params: &'a MontgomeryParams) -> Self {
@@ -149,7 +193,12 @@ impl<'a> Field<'a> for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
     /// let z = Fp::zero(params);
     /// assert!(z.is_zero());
     ///
@@ -168,10 +217,14 @@ impl<'a> Field<'a> for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::{Field, ToU1024};
+    ///
+    /// let params = get_tiny_params();
     /// let one = Fp::one(params);
-    /// // multiplicative identity: one * one == one
-    /// assert_eq!(one.mul(&one).to_u1024_val(), one.to_u1024_val());
+    /// assert_eq!(one.mul(&one).to_u1024(), one.to_u1024());
     /// ```
     fn one(params: &'a MontgomeryParams) -> Self {
         Self(FieldElement::one(params))
@@ -183,11 +236,16 @@ impl<'a> Field<'a> for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // assuming `params` is a valid `&MontgomeryParams` in scope
-    /// let a = Fp::new(5u128.into(), params);
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::{Field, ToU1024};
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp::new(U1024::from_u64(5), params);
     /// let inv = a.inv().expect("nonzero element should have an inverse");
-    /// assert_eq!(a.mul(&inv).to_u1024_val(), Fp::one(params).to_u1024_val());
+    /// assert_eq!(a.mul(&inv).to_u1024(), Fp::one(params).to_u1024());
     ///
     /// let zero = Fp::zero(params);
     /// assert!(zero.inv().is_none());
@@ -208,8 +266,14 @@ impl<'a> Field<'a> for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // given `fp: Fp`
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let fp = Fp::new(U1024::from_u64(7), params);
     /// let doubled = fp.double();
     /// assert_eq!(doubled, fp + fp);
     /// ```
@@ -225,13 +289,17 @@ impl<'a> Field<'a> for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Construct `params` appropriately for your field implementation.
-    /// let params = /* MontgomeryParams */ unimplemented!();
-    /// let a = Fp::new(3u128.into(), &params);
-    /// let b = Fp::new(4u128.into(), &params);
-    /// let c = a.mul(&b);
-    /// assert_eq!(c.to_u1024_val(), (3u128 * 4u128).into());
+    /// ```rust
+    /// use std::ops::Mul;
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp::new(U1024::from_u64(3), params);
+    /// let b = Fp::new(U1024::from_u64(4), params);
+    /// let c = a.mul(b);
+    /// assert_eq!(c.to_u1024(), U1024::from_u64(12));
     /// ```
     fn mul(&self, rhs: &Self) -> Self {
         Self(self.0 * rhs.0)
@@ -241,9 +309,16 @@ impl<'a> Field<'a> for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // `a` and `b` are `Fp` field elements with the same Montgomery parameters.
-    /// let sum = a.add(&b);
+    /// ```rust
+    /// use std::ops::Add;
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp::new(U1024::from_u64(8), params);
+    /// let b = Fp::new(U1024::from_u64(6), params);
+    /// let sum = a.add(b);
     /// assert_eq!(sum, a + b);
     /// ```
     fn add(&self, rhs: &Self) -> Self {
@@ -258,10 +333,13 @@ impl<'a> Field<'a> for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```no_run
-    /// // `params` should be a valid `&MontgomeryParams` for the field.
-    /// let params = /* obtain MontgomeryParams */ todo!();
-    /// let a = Fp::one(&params);
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp::one(params);
     /// let s = a.square();
     /// assert_eq!(s, a.mul(&a));
     /// ```
@@ -275,12 +353,15 @@ impl<'a> ToU1024 for Fp<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Construct an `Fp` value (creation omitted) and obtain its integer value:
-    /// // let params = /* MontgomeryParams */ ;
-    /// // let fp = Fp::new(some_u1024_value, &params);
-    /// let int_val = fp.to_u1024_val();
-    /// // `int_val` is a `U1024` representing the field element.
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use mathlib::{U1024, BigInt};
+    ///
+    /// let params = get_tiny_params();
+    /// let fp = Fp::new(U1024::from_u64(11), params);
+    /// let int_val = fp.to_u1024();
+    /// assert_eq!(int_val, U1024::from_u64(11));
     /// ```
     fn to_u1024_val(&self) -> U1024 {
         self.0.to_u1024()

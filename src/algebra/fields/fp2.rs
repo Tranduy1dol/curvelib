@@ -20,12 +20,21 @@ impl<'a> Mul for Fp2<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Construct two Fp2 values (field construction shown illustratively;
-    /// // replace with the crate's actual constructors as needed).
-    /// let x = Fp2 { c0: Fp::one(), c1: Fp::zero() }; // represents 1
-    /// let y = Fp2 { c0: Fp::zero(), c1: Fp::one() }; // represents u
-    /// let z = x * y; // expected to follow quadratic extension multiplication rules
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
+    ///
+    /// // 1 in Fp2 is (1 + 0·u)
+    /// let x = Fp2::one(params);
+    ///
+    /// // u in Fp2 is (0 + 1·u)
+    /// let y = Fp2 { c0: Fp::zero(params), c1: Fp::one(params) };
+    ///
+    /// let z = x * y;
+    /// assert_eq!(z, y);
     /// ```
     fn mul(self, rhs: Self) -> Self {
         // Quadratic extension field multiplication: (a + bu)(c + du)
@@ -35,7 +44,7 @@ impl<'a> Mul for Fp2<'a> {
         // where β is the quadratic non-residue
 
         let v0 = self.c0 * rhs.c0; // a * c
-        let v1 = self.c1 * rhs.c1; // b * d  
+        let v1 = self.c1 * rhs.c1; // b * d
         let v2 = (self.c0 + self.c1) * (rhs.c0 + rhs.c1); // (a+b)(c+d)
 
         Self {
@@ -56,15 +65,20 @@ impl<'a> Field<'a> for Fp2<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // let params: &MontgomeryParams = /* obtain MontgomeryParams for the base field */ ;
-    /// // let z = Fp2::zero(params);
-    /// // assert!(z.is_zero());
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp2;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
+    /// let z = Fp2::zero(params);
+    /// assert!(z.is_zero());
     /// ```
     fn zero(params: &'a MontgomeryParams) -> Self {
         let z = Fp::zero(params);
         Self { c0: z, c1: z }
     }
+
     /// Returns whether both components of the quadratic extension element are zero.
     ///
     /// # Returns
@@ -72,10 +86,17 @@ impl<'a> Field<'a> for Fp2<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // assuming `params` is a `&MontgomeryParams` and Fp2::zero is available
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp2;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
     /// let z = Fp2::zero(params);
     /// assert!(z.is_zero());
+    ///
+    /// let one = Fp2::one(params);
+    /// assert!(!one.is_zero());
     /// ```
     fn is_zero(&self) -> bool {
         self.c0.is_zero() && self.c1.is_zero()
@@ -87,8 +108,12 @@ impl<'a> Field<'a> for Fp2<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // `params` is a reference to MontgomeryParams appropriate for the base field.
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
     /// let one = Fp2::one(params);
     /// assert_eq!(one.c0, Fp::one(params));
     /// assert!(one.c1.is_zero());
@@ -107,7 +132,7 @@ impl<'a> Field<'a> for Fp2<'a> {
     ///
     /// # Examples
     ///
-    /// ```
+    /// ```ignore
     /// // `params` must be a valid `&MontgomeryParams` for the base field.
     /// let one = Fp2::one(params);
     /// assert_eq!(one.inv().unwrap(), one);
@@ -143,8 +168,13 @@ impl<'a> Field<'a> for Fp2<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // `a` is an `Fp2` element previously constructed.
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp2;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp2::one(params);
     /// let doubled = a.double();
     /// assert_eq!(doubled, a + a);
     /// ```
@@ -156,17 +186,17 @@ impl<'a> Field<'a> for Fp2<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Given two Fp2 values `a` and `b` (constructed with appropriate MontgomeryParams):
-    /// // let params = /* MontgomeryParams instance */;
-    /// // let a = Fp2::one(&params);
-    /// // let b = Fp2::one(&params);
-    /// // The product can be computed either with `*` or with `mul`.
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp2;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp2::one(params);
+    /// let b = Fp2::one(params);
     /// let c = a.mul(&b);
     /// assert_eq!(c, a * b);
     /// ```
-    ///
-    /// @returns The field element equal to `self` multiplied by `rhs`.
     fn mul(&self, rhs: &Self) -> Self {
         *self * *rhs
     }
@@ -175,8 +205,14 @@ impl<'a> Field<'a> for Fp2<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// // Given two `Fp2` values `a` and `b`:
+    /// ```rust
+    /// use curvelib::algebra::fields::Fp2;
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
+    /// let a = Fp2::one(params);
+    /// let b = Fp2::one(params);
     /// let sum = a.add(&b);
     /// assert_eq!(sum, a + b);
     /// ```
@@ -190,8 +226,13 @@ impl<'a> Field<'a> for Fp2<'a> {
     ///
     /// # Examples
     ///
-    /// ```
-    /// let elem = /* an `Fp2` value */ unimplemented!();
+    /// ```rust
+    /// use curvelib::algebra::fields::{Fp, Fp2};
+    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
+    /// use curvelib::traits::Field;
+    ///
+    /// let params = get_tiny_params();
+    /// let elem = Fp2::new(Fp::one(params), Fp::one(params));
     /// let sq = elem.square();
     /// assert_eq!(sq, elem * elem);
     /// ```

@@ -12,14 +12,22 @@ use mathlib::{BigInt, FieldElement, U1024};
 ///
 /// # Examples
 ///
-/// ```no_run
-/// // Constructing fields and elements depends on the surrounding library; this shows intended usage.
-/// // let params = FieldParams::new(...);
-/// // let n = FieldElement::new(U1024::from_u64(10), &params);
-/// // match sqrt_mod(&n) {
-/// //     Some(r) => assert_eq!(r * r, n),
-/// //     None => println!("no square root exists for n in this field"),
-/// // }
+/// ```rust
+/// use curvelib::algebra::sqrt_mod::sqrt_mod;
+/// use mathlib::field::montgomery::MontgomeryParams;
+/// use mathlib::{FieldElement, U1024, BigInt};
+///
+/// // Work in the tiny prime field F_13.
+/// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+///
+/// // 10 is a quadratic residue mod 13 (since 6^2 = 36 ≡ 10 mod 13).
+/// let n = FieldElement::new(U1024::from_u64(10), &params);
+/// let r = sqrt_mod(&n).expect("10 should have a square root in F_13");
+/// assert_eq!(r * r, n);
+///
+/// // 2 is a non-residue mod 13, so no square root exists.
+/// let n2 = FieldElement::new(U1024::from_u64(2), &params);
+/// assert!(sqrt_mod(&n2).is_none());
 /// ```
 pub fn sqrt_mod<'a>(n: &FieldElement<'a>) -> Option<FieldElement<'a>> {
     let params = n.params;

@@ -16,8 +16,12 @@ static SCALAR_PARAMS: OnceLock<MontgomeryParams> = OnceLock::new();
 ///
 /// # Examples
 ///
-/// ```
-/// let _params = crate::instances::bls6_6::get_params();
+/// ```rust
+/// use curvelib::instances::bls6_6::get_params;
+/// use mathlib::{U1024, BigInt};
+///
+/// let params = get_params();
+/// assert_eq!(params.modulus, U1024::from_u64(43));
 /// ```
 pub fn get_params() -> &'static MontgomeryParams {
     PARAMS.get_or_init(|| {
@@ -30,8 +34,12 @@ pub fn get_params() -> &'static MontgomeryParams {
 ///
 /// # Examples
 ///
-/// ```
-/// let _params = get_scalar_params();
+/// ```rust
+/// use curvelib::instances::bls6_6::get_scalar_params;
+/// use mathlib::{U1024, BigInt};
+///
+/// let params = get_scalar_params();
+/// assert_eq!(params.modulus, U1024::from_u64(39));
 /// ```
 pub fn get_scalar_params() -> &'static MontgomeryParams {
     SCALAR_PARAMS.get_or_init(|| {
@@ -46,7 +54,10 @@ pub fn get_scalar_params() -> &'static MontgomeryParams {
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
+/// use curvelib::instances::bls6_6::get_generator_coords;
+/// use mathlib::{U1024, BigInt};
+///
 /// let (x, y) = get_generator_coords();
 /// assert_eq!(x, U1024::from_u64(13));
 /// assert_eq!(y, U1024::from_u64(15));
@@ -61,7 +72,10 @@ pub fn get_generator_coords() -> (U1024, U1024) {
 ///
 /// # Examples
 ///
-/// ```
+/// ```rust
+/// use curvelib::instances::bls6_6::get_beta;
+/// use mathlib::{U1024, BigInt};
+///
 /// let beta = get_beta();
 /// assert_eq!(beta, U1024::from_u64(42));
 /// ```
@@ -71,15 +85,26 @@ pub fn get_beta() -> U1024 {
 
 /// Constructs the BLS6-6 Weierstrass curve over F_43 with equation y^2 = x^3 + 6.
 ///
-/// The curve is created with curve parameter a = 0 and b = 6, uses the base field
+/// The curve is created with curve parameters a = 0 and b = 6, uses the base field
 /// modulus p = 43 and the scalar field order = 39, and is returned with its generator point
 /// (x, y) = (13, 15).
 ///
 /// # Examples
 ///
-/// ```
-/// let _curve = get_curve();
-/// // curve is ready for use
+/// ```rust
+/// use curvelib::instances::bls6_6::{get_curve, get_generator_coords, get_params, get_scalar_params};
+/// use mathlib::{U1024, BigInt};
+///
+/// let curve = get_curve();
+///
+/// // sanity-check the instance parameters
+/// assert_eq!(get_params().modulus, U1024::from_u64(43));
+/// assert_eq!(get_scalar_params().modulus, U1024::from_u64(39));
+/// assert_eq!(get_generator_coords(), (U1024::from_u64(13), U1024::from_u64(15)));
+///
+/// // and the curve wires the same params in
+/// assert_eq!(curve.params.modulus, U1024::from_u64(43));
+/// assert_eq!(curve.scalar_params.modulus, U1024::from_u64(39));
 /// ```
 pub fn get_curve() -> WeierstrassCurve<'static> {
     let params = get_params();
