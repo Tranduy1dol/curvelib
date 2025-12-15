@@ -3,8 +3,7 @@ use std::ops::{Add, Deref, Mul, Neg, Sub};
 use mathlib::field::montgomery::MontgomeryParams;
 use mathlib::{FieldElement, U1024};
 
-use crate::traits::curve::ToU1024;
-use crate::traits::field::Field;
+use crate::traits::{Field, ToU1024};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Fp<'a>(pub FieldElement<'a>);

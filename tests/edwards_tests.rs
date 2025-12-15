@@ -1,7 +1,7 @@
 use curvelib::{
-    algebra::fields::fp::Fp,
+    algebra::fields::Fp,
     instances::tiny_jubjub,
-    models::{short_weierstrass::WeierstrassCurve, twisted_edwards::TePoint},
+    models::{TePoint, WeierstrassCurve},
     traits::{Curve, ProjectivePoint},
 };
 use mathlib::{BigInt, U1024, field::montgomery::MontgomeryParams};

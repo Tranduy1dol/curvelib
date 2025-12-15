@@ -1,16 +1,14 @@
-use mathlib::BigInt;
-use mathlib::FieldElement;
 use mathlib::field::montgomery::MontgomeryParams;
+use mathlib::{BigInt, FieldElement};
 
-use crate::algebra::fields::Fp2;
-use crate::algebra::fields::fp::Fp;
+use crate::algebra::fields::{Fp, Fp2};
 use crate::def_weierstrass_curve;
 use crate::traits::{Curve, Field, ProjectivePoint};
 
-def_weierstrass_curve!(G2Curve, Fp2<'a>);
+def_weierstrass_curve!(SexticTwist, Fp2<'a>);
 
-impl<'a> Curve<'a> for G2Curve<'a> {
-    type Point = G2Point<'a>;
+impl<'a> Curve<'a> for SexticTwist<'a> {
+    type Point = STPoint<'a>;
 
     fn identity(&self) -> Self::Point {
         let zero_fp = FieldElement::zero(self.params);
@@ -19,7 +17,7 @@ impl<'a> Curve<'a> for G2Curve<'a> {
         let zero_fp2 = Fp2::new(Fp::from(zero_fp), Fp::from(zero_fp));
         let one_fp2 = Fp2::new(Fp::from(one_fp), Fp::from(zero_fp)); // 1 + 0u
 
-        G2Point {
+        STPoint {
             x: one_fp2,
             y: one_fp2,
             z: zero_fp2,
@@ -56,7 +54,7 @@ impl<'a> Curve<'a> for G2Curve<'a> {
             Fp::from(FieldElement::zero(self.params)),
         );
 
-        G2Point {
+        STPoint {
             x,
             y,
             z,
@@ -67,14 +65,14 @@ impl<'a> Curve<'a> for G2Curve<'a> {
 
 // --- 2. G2 POINT DEFINITION (Jacobian Coordinates) ---
 #[derive(Clone, Debug)]
-pub struct G2Point<'a> {
+pub struct STPoint<'a> {
     pub x: Fp2<'a>,
     pub y: Fp2<'a>,
     pub z: Fp2<'a>,
-    pub curve: G2Curve<'a>,
+    pub curve: SexticTwist<'a>,
 }
 
-impl<'a> PartialEq for G2Point<'a> {
+impl<'a> PartialEq for STPoint<'a> {
     fn eq(&self, other: &Self) -> bool {
         if self.is_identity() {
             return other.is_identity();
@@ -88,10 +86,10 @@ impl<'a> PartialEq for G2Point<'a> {
         x1 == x2 && y1 == y2
     }
 }
-impl<'a> Eq for G2Point<'a> {}
+impl<'a> Eq for STPoint<'a> {}
 
-impl<'a> G2Point<'a> {
-    pub fn new(x: Fp2<'a>, y: Fp2<'a>, z: Fp2<'a>, curve: G2Curve<'a>) -> Self {
+impl<'a> STPoint<'a> {
+    pub fn new(x: Fp2<'a>, y: Fp2<'a>, z: Fp2<'a>, curve: SexticTwist<'a>) -> Self {
         Self { x, y, z, curve }
     }
 
@@ -110,7 +108,7 @@ impl<'a> G2Point<'a> {
     }
 }
 
-impl<'a> ProjectivePoint<'a> for G2Point<'a> {
+impl<'a> ProjectivePoint<'a> for STPoint<'a> {
     type Field = Fp2<'a>;
 
     fn is_identity(&self) -> bool {

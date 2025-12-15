@@ -1,9 +1,9 @@
-use curvelib::algebra::fields::fp::Fp;
-use curvelib::algebra::fields::fp2::Fp2;
-use curvelib::models::sextic_twist::{G2Curve, G2Point};
-use curvelib::models::short_weierstrass::{SWPoint, WeierstrassCurve};
-use curvelib::protocol::pairing::tate_pairing;
-use curvelib::traits::{Field, ProjectivePoint};
+use curvelib::{
+    algebra::fields::{Fp, Fp2},
+    models::{STPoint, SWPoint, SexticTwist, WeierstrassCurve},
+    protocol::pairing::tate_pairing,
+    traits::{Field, ProjectivePoint},
+};
 use mathlib::field::montgomery::MontgomeryParams;
 use mathlib::{BigInt, U1024};
 
@@ -13,7 +13,7 @@ fn test_bls6_6_bilinearity() {
     // P = 43, r = 13 (Subgroup order)
     let p_val = U1024::from_u64(43);
     let r_val = U1024::from_u64(13); // Subgroup order
-    let final_exp = U1024::from_u64(487309697); // (43^6 - 1) / 13
+    let final_exp = U1024::from_u64(486258696); // (43^6 - 1) / 13
 
     let base_params = MontgomeryParams::new(p_val, U1024::zero());
     let scalar_params = MontgomeryParams::new(r_val.clone(), U1024::zero());
@@ -51,7 +51,7 @@ fn test_bls6_6_bilinearity() {
     let b_fp2 = Fp2::new(Fp::from(b_val.clone()), Fp::from(zero.clone()));
     let gen_x_fp2 = Fp2::new(Fp::from(zero.clone()), Fp::from(zero.clone())); // Dummy, not used in test
     let gen_y_fp2 = Fp2::new(Fp::from(zero.clone()), Fp::from(zero.clone())); // Dummy, not used in test
-    let g2_curve = G2Curve::new(
+    let g2_curve = SexticTwist::new(
         a_fp2,
         b_fp2,
         &base_params,
@@ -65,7 +65,7 @@ fn test_bls6_6_bilinearity() {
     let qy_fp2 = Fp2::new(Fp::from(gy), Fp::from(zero.clone()));
     let qz_fp2 = Fp2::new(Fp::from(Fp::one(&base_params)), Fp::from(zero.clone()));
 
-    let q = G2Point::new(qx_fp2, qy_fp2, qz_fp2, g2_curve);
+    let q = STPoint::new(qx_fp2, qy_fp2, qz_fp2, g2_curve);
 
     // 4. Calculate e(P, Q)
     let e1 = tate_pairing(&p, &q, r_val.clone(), final_exp.clone());

@@ -72,8 +72,8 @@ pub trait Curve<'a>: Clone + Debug {
             }
             let k_full = U1024(limbs); // Direct construction since field is pub
 
-            // k = k_full % (n - 1) + 1  => ensures range [1, n-1]
-            let (_q, rem) = k_full.div_rem(n);
+            // k = k_full % n, skip if zero => ensures range [1, n-1]
+            let (_, rem) = k_full.div_rem(n);
             let k_nonce = if rem == U1024::zero() {
                 continue;
             } else {

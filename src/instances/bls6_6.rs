@@ -1,11 +1,10 @@
 use std::sync::OnceLock;
 
-use mathlib::field::element::FieldElement;
 use mathlib::field::montgomery::MontgomeryParams;
-use mathlib::{BigInt, U1024};
+use mathlib::{BigInt, FieldElement, U1024};
 
-use crate::algebra::fields::fp::Fp;
-use crate::models::short_weierstrass::WeierstrassCurve;
+use crate::algebra::fields::Fp;
+use crate::models::WeierstrassCurve;
 
 static PARAMS: OnceLock<MontgomeryParams> = OnceLock::new();
 static SCALAR_PARAMS: OnceLock<MontgomeryParams> = OnceLock::new();

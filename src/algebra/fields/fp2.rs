@@ -1,10 +1,10 @@
 use std::ops::Mul;
 
+use mathlib::field::montgomery::MontgomeryParams;
+
 use crate::algebra::fields::Fp;
 use crate::def_fp2;
 use crate::traits::Field;
-
-use mathlib::field::montgomery::MontgomeryParams;
 
 def_fp2!(Fp2, Fp<'a>);
 
@@ -24,7 +24,7 @@ impl<'a> Mul for Fp2<'a> {
         let v2 = (self.c0 + self.c1) * (rhs.c0 + rhs.c1); // (a+b)(c+d)
 
         Self {
-            c0: v0 + v1,      // Real part (assuming β = 1 for generic case)
+            c0: v0 - v1,      // Real part: ac + β·bd where β = -1
             c1: v2 - v0 - v1, // Imaginary part
         }
     }
@@ -59,7 +59,7 @@ impl<'a> Field<'a> for Fp2<'a> {
 
         let a_sq = a.square();
         let b_sq = b.square();
-        let norm = a_sq - b_sq; // Matching our multiplication with β = 1
+        let norm = a_sq + b_sq; // For β = -1: norm = a² - β·b² = a² + b²
 
         let inv_norm = Field::inv(&norm)?; // Return None if norm = 0
 

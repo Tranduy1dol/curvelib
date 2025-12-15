@@ -1,7 +1,7 @@
 use curvelib::{
-    algebra::fields::fp::Fp,
+    algebra::fields::Fp,
     instances::tiny_jubjub,
-    models::twisted_edwards::TePoint,
+    models::TePoint,
     traits::{Curve, ProjectivePoint},
 };
 use mathlib::{BigInt, U1024};

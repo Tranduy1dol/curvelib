@@ -1,15 +1,13 @@
-use mathlib::field::element::FieldElement;
 use mathlib::field::montgomery::MontgomeryParams;
-use mathlib::{BigInt, U1024};
+use mathlib::{BigInt, FieldElement, U1024};
 
-use crate::algebra::fields::fp::Fp;
-use crate::algebra::fields::fp2::Fp2;
-use crate::algebra::fields::fp6::Fp6;
-use crate::models::sextic_twist::G2Point; // G2
-use crate::models::short_weierstrass::SWPoint; // G1
-use crate::traits::{Field, ProjectivePoint};
+use crate::{
+    algebra::fields::{Fp, Fp2, Fp6},
+    models::{sextic_twist::STPoint as G2Projective, short_weierstrass::SWPoint as G1Affine},
+    traits::{Field, ProjectivePoint},
+};
 
-fn calculate_slope<'a>(t: &SWPoint<'a>, p: &SWPoint<'a>) -> Fp<'a> {
+fn calculate_slope<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>) -> Fp<'a> {
     let (x1, y1) = t.to_affine();
     let (x2, y2) = p.to_affine();
 
@@ -42,7 +40,7 @@ fn calculate_slope<'a>(t: &SWPoint<'a>, p: &SWPoint<'a>) -> Fp<'a> {
 
 /// Evaluate line function l_{T, P}(Q)
 /// Returns an element of Fp6
-fn evaluate_line<'a>(t: &SWPoint<'a>, p: &SWPoint<'a>, q: &G2Point<'a>) -> Fp6<'a> {
+fn evaluate_line<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>, q: &G2Projective<'a>) -> Fp6<'a> {
     // Line: y - y1 - lambda(x - x1) = 0
     // => Val = y_Q - y_T - lambda * (x_Q - x_T)
     // Note: T, P in G1 (Fp), Q in G2 (Fp2).
@@ -58,8 +56,17 @@ fn evaluate_line<'a>(t: &SWPoint<'a>, p: &SWPoint<'a>, q: &G2Point<'a>) -> Fp6<'
     // Q coordinates (Fp2)
     // Assume G2Point stores Affine, or we convert here
     // For simplicity given G2Point doesn't have affine cache, we use x, y directly assuming z=1 or projective calc
-    let xq = q.x;
-    let yq = q.y;
+    // Convert Q to affine coordinates
+    let (xq, yq) = if q.z == Fp2::one(t.curve.params) {
+        (q.x, q.y)
+    } else {
+        let z_inv =
+            q.z.inv()
+                .expect("Q z-coordinate is zero in miller loop (point at infinity?)");
+        let z2 = z_inv.square();
+        let z3 = z2 * z_inv;
+        (q.x * z2, q.y * z3)
+    };
 
     // Calculate: (yq - yt) - lambda * (xq - xt)
     // Need to lift yt, xt, lambda from Fp to Fp2 to compute with xq, yq
@@ -82,8 +89,8 @@ fn evaluate_line<'a>(t: &SWPoint<'a>, p: &SWPoint<'a>, q: &G2Point<'a>) -> Fp6<'
 }
 
 /// Tính f_{r, P}(Q)
-pub fn miller_loop<'a>(p: &SWPoint<'a>, q: &G2Point<'a>, r_order: U1024) -> Fp6<'a> {
-    let params = p.curve.scalar_params;
+pub fn miller_loop<'a>(p: &G1Affine<'a>, q: &G2Projective<'a>, r_order: U1024) -> Fp6<'a> {
+    let params = p.curve.params;
 
     let mut t = p.clone();
     let mut f = Fp6::one(params);

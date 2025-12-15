@@ -1,7 +1,6 @@
 use mathlib::U1024;
 
-use crate::algebra::fields::fp6::Fp6;
-use crate::traits::field::Field;
+use crate::{algebra::fields::Fp6, traits::Field};
 
 pub fn final_exponentiation<'a>(f: &Fp6<'a>, exponent: &U1024) -> Fp6<'a> {
     // Perform f ^ exponent using Square-and-Multiply

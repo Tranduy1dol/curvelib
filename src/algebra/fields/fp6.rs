@@ -2,7 +2,7 @@ use std::ops::Mul;
 
 use mathlib::field::montgomery::MontgomeryParams;
 
-use crate::algebra::fields::Fp2;
+use crate::algebra::fields::{Fp, Fp2};
 use crate::def_fp6;
 use crate::traits::Field;
 
@@ -33,6 +33,12 @@ impl<'a> Mul for Fp6<'a> {
         // (a + bv + cv²)(d + ev + fv²) = ad + (ae+bd)v + (af+be+cd)v² + (bf+ce)v³ + (cf)v⁴
         // Assuming v³ = ξ = 1: v³ -> 1, v⁴ -> v, v⁵ -> v²
 
+        let params = self.c0.c0.params;
+        let zero = Fp::zero(params);
+        let one = Fp::one(params);
+        // xi = u = 0 + 1u
+        let xi = Fp2::new(zero, one);
+
         let ad = a * d;
         let ae = a * e;
         let af = a * f;
@@ -44,9 +50,9 @@ impl<'a> Mul for Fp6<'a> {
         let cf = c * f;
 
         Self {
-            c0: ad + bf + ce, // Constant term: ad + ξ(bf+ce), with ξ=1
-            c1: ae + bd + cf, // v coefficient: ae + bd + ξ(cf), with ξ=1
-            c2: af + be + cd, // v² coefficient: af + be + cd
+            c0: ad + xi * (bf + ce), // Constant term: ad + ξ(bf+ce)
+            c1: ae + bd + xi * cf,   // v coefficient: ae + bd + ξ(cf)
+            c2: af + be + cd,        // v² coefficient: af + be + cd
         }
     }
 }

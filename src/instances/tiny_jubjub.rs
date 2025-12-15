@@ -3,8 +3,8 @@ use std::sync::OnceLock;
 use mathlib::field::montgomery::MontgomeryParams;
 use mathlib::{BigInt, U1024};
 
-use crate::algebra::fields::fp::Fp;
-use crate::models::twisted_edwards::EdwardsCurve;
+use crate::algebra::fields::Fp;
+use crate::models::EdwardsCurve;
 
 static PARAMS: OnceLock<MontgomeryParams> = OnceLock::new();
 static SCALAR_PARAMS: OnceLock<MontgomeryParams> = OnceLock::new();

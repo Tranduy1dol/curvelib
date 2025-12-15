@@ -3,13 +3,14 @@ pub mod miller;
 
 use mathlib::U1024;
 
-use crate::algebra::fields::fp6::Fp6;
-use crate::models::sextic_twist::G2Point;
-use crate::models::short_weierstrass::SWPoint;
+use crate::{
+    algebra::fields::Fp6,
+    models::{sextic_twist::STPoint as G2Projective, short_weierstrass::SWPoint as G1Affine},
+};
 
 pub fn tate_pairing<'a>(
-    p: &SWPoint<'a>,
-    q: &G2Point<'a>,
+    p: &G1Affine<'a>,
+    q: &G2Projective<'a>,
     r_order: U1024,
     final_exp_val: U1024,
 ) -> Fp6<'a> {
