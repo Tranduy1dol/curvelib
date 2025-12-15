@@ -1,38 +1,11 @@
-use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+use mathlib::field::montgomery::MontgomeryParams;
 use mathlib::{BigInt, U1024};
 
-use crate::traits::{Curve, ProjectivePoint};
+use crate::algebra::fields::fp::Fp;
+use crate::def_weierstrass_curve;
+use crate::traits::{Curve, Field, ProjectivePoint};
 
-#[derive(Clone, Debug)]
-pub struct WeierstrassCurve<'a> {
-    pub a: FieldElement<'a>,
-    pub b: FieldElement<'a>,
-    pub params: &'a MontgomeryParams,
-    pub scalar_params: &'a MontgomeryParams,
-    pub generator_x: U1024,
-    pub generator_y: U1024,
-}
-
-impl<'a> WeierstrassCurve<'a> {
-    /// Creates a WeierstrassCurve with the given curve coefficients and Montgomery parameters.
-    pub fn new(
-        a: FieldElement<'a>,
-        b: FieldElement<'a>,
-        params: &'a MontgomeryParams,
-        scalar_params: &'a MontgomeryParams,
-        generator_x: U1024,
-        generator_y: U1024,
-    ) -> Self {
-        Self {
-            a,
-            b,
-            params,
-            scalar_params,
-            generator_x,
-            generator_y,
-        }
-    }
-}
+def_weierstrass_curve!(WeierstrassCurve, Fp<'a>);
 
 impl<'a> Curve<'a> for WeierstrassCurve<'a> {
     type Point = SWPoint<'a>;
@@ -45,23 +18,25 @@ impl<'a> Curve<'a> for WeierstrassCurve<'a> {
     ///
     /// ```
     /// use mathlib::{U1024, BigInt};
-    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use mathlib::field::montgomery::MontgomeryParams;
     /// use curvelib::models::short_weierstrass::WeierstrassCurve;
     /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use curvelib::algebra::fields::fp::Fp;
+    /// use curvelib::traits::Field;
     ///
     /// let p = U1024::from_u64(17);
     /// let params = MontgomeryParams::new(p, U1024::zero());
-    /// let a = FieldElement::new(U1024::from_u64(1), &params);
-    /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
+    /// let a = Fp::new(U1024::from_u64(1), &params);
+    /// let b = Fp::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, Fp::new(U1024::from_u64(1), &params), Fp::new(U1024::from_u64(1), &params));
     ///
     /// let id = curve.identity();
     /// assert!(id.is_identity());
     /// ```
     fn identity(&self) -> Self::Point {
         let curve = self.clone();
-        let one = FieldElement::one(curve.params);
-        let zero = FieldElement::zero(curve.params);
+        let one = Fp::one(self.params);
+        let zero = Fp::zero(self.params);
         SWPoint {
             x: one,
             y: one,
@@ -77,7 +52,11 @@ impl<'a> Curve<'a> for WeierstrassCurve<'a> {
     ///
     /// # Returns
     /// `true` if `y^2 = x^3 + a*x + b` holds for this curve's parameters, `false` otherwise.
-    fn is_on_curve(&self, x: &FieldElement, y: &FieldElement) -> bool {
+    fn is_on_curve(
+        &self,
+        x: &<Self::Point as ProjectivePoint<'a>>::Field,
+        y: &<Self::Point as ProjectivePoint<'a>>::Field,
+    ) -> bool {
         let y2 = *y * *y;
         let x2 = *x * *x;
         let x3 = x2 * *x;
@@ -91,9 +70,9 @@ impl<'a> Curve<'a> for WeierstrassCurve<'a> {
     }
 
     fn generator(&self) -> Self::Point {
-        let x = FieldElement::new(self.generator_x, self.params);
-        let y = FieldElement::new(self.generator_y, self.params);
-        let z = FieldElement::one(self.params);
+        let x = self.generator_x;
+        let y = self.generator_y;
+        let z = Fp::one(self.params);
         SWPoint {
             x,
             y,
@@ -105,9 +84,9 @@ impl<'a> Curve<'a> for WeierstrassCurve<'a> {
 
 #[derive(Clone, Debug)]
 pub struct SWPoint<'a> {
-    pub x: FieldElement<'a>,
-    pub y: FieldElement<'a>,
-    pub z: FieldElement<'a>,
+    pub x: Fp<'a>,
+    pub y: Fp<'a>,
+    pub z: Fp<'a>,
     pub curve: WeierstrassCurve<'a>,
 }
 
@@ -137,35 +116,33 @@ impl<'a> SWPoint<'a> {
     ///
     /// ```
     /// use mathlib::{U1024, BigInt};
-    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use mathlib::field::montgomery::MontgomeryParams;
     /// use curvelib::models::short_weierstrass::{WeierstrassCurve, SWPoint};
     /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use curvelib::algebra::fields::fp::Fp;
+    /// use curvelib::traits::Field;
     ///
     /// let p = U1024::from_u64(17);
     /// let params = MontgomeryParams::new(p, U1024::zero());
-    /// let a = FieldElement::new(U1024::from_u64(1), &params);
-    /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
+    /// let a = Fp::new(U1024::from_u64(1), &params);
+    /// let b = Fp::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, Fp::new(U1024::from_u64(1), &params), Fp::new(U1024::from_u64(1), &params));
     ///
-    /// let x = FieldElement::one(&params);
-    /// let y = FieldElement::one(&params);
+    /// let x = Fp::one(&params);
+    /// let y = Fp::one(&params);
     /// let p = SWPoint::new_affine(x, y, &curve);
     /// // Note: (1,1) might not be on the curve y^2 = x^3 + x + 1 mod 17, but new_affine constructs it anyway.
     /// assert!(!p.is_identity());
     ///
-    /// let z0 = FieldElement::zero(&params);
+    /// let z0 = Fp::zero(&params);
     /// let id = SWPoint::new_affine(z0.clone(), z0, &curve);
     /// assert!(id.is_identity());
     /// ```
-    pub fn new_affine(
-        x: FieldElement<'a>,
-        y: FieldElement<'a>,
-        curve: &'a WeierstrassCurve<'a>,
-    ) -> Self {
+    pub fn new_affine(x: Fp<'a>, y: Fp<'a>, curve: &'a WeierstrassCurve<'a>) -> Self {
         if x.value == U1024::zero() && y.value == U1024::zero() {
             return curve.identity();
         }
-        let z = FieldElement::one(curve.params);
+        let z = Fp::one(curve.params);
         Self {
             x,
             y,
@@ -175,7 +152,9 @@ impl<'a> SWPoint<'a> {
     }
 }
 
-impl<'a> ProjectivePoint for SWPoint<'a> {
+impl<'a> ProjectivePoint<'a> for SWPoint<'a> {
+    type Field = Fp<'a>;
+
     /// Checks whether this point is the identity (point at infinity).
     ///
     /// The point is considered the identity when its projective `z` coordinate is zero.
@@ -188,15 +167,17 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     ///
     /// ```
     /// use mathlib::{U1024, BigInt};
-    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use mathlib::field::montgomery::MontgomeryParams;
     /// use curvelib::models::short_weierstrass::WeierstrassCurve;
     /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use curvelib::algebra::fields::fp::Fp;
+    /// use curvelib::traits::Field;
     ///
     /// let p = U1024::from_u64(17);
     /// let params = MontgomeryParams::new(p, U1024::zero());
-    /// let a = FieldElement::new(U1024::from_u64(1), &params);
-    /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
+    /// let a = Fp::new(U1024::from_u64(1), &params);
+    /// let b = Fp::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, Fp::new(U1024::from_u64(1), &params), Fp::new(U1024::from_u64(1), &params));
     ///
     /// let id = curve.identity();
     /// assert!(id.is_identity());
@@ -215,15 +196,17 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     ///
     /// ```
     /// use mathlib::{U1024, BigInt};
-    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use mathlib::field::montgomery::MontgomeryParams;
     /// use curvelib::models::short_weierstrass::WeierstrassCurve;
     /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use curvelib::algebra::fields::fp::Fp;
+    /// use curvelib::traits::Field;
     ///
     /// let p = U1024::from_u64(17);
     /// let params = MontgomeryParams::new(p, U1024::zero());
-    /// let a = FieldElement::new(U1024::from_u64(1), &params);
-    /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
+    /// let a = Fp::new(U1024::from_u64(1), &params);
+    /// let b = Fp::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, Fp::new(U1024::from_u64(1), &params), Fp::new(U1024::from_u64(1), &params));
     ///
     /// let p = curve.identity();
     /// let q = curve.identity();
@@ -265,7 +248,8 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
         let hhh = hh * h;
 
         let v = u1 * hh;
-        let two = FieldElement::new(U1024::from_u64(2), self.curve.params);
+        let two_val = U1024::from_u64(2);
+        let two = Fp::new(two_val, self.curve.params);
 
         let x3 = (r * r) - hhh - (two * v);
 
@@ -289,15 +273,17 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     ///
     /// ```
     /// use mathlib::{U1024, BigInt};
-    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use mathlib::field::montgomery::MontgomeryParams;
     /// use curvelib::models::short_weierstrass::WeierstrassCurve;
     /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use curvelib::algebra::fields::fp::Fp;
+    /// use curvelib::traits::Field;
     ///
     /// let p = U1024::from_u64(17);
     /// let params = MontgomeryParams::new(p, U1024::zero());
-    /// let a = FieldElement::new(U1024::from_u64(1), &params);
-    /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
+    /// let a = Fp::new(U1024::from_u64(1), &params);
+    /// let b = Fp::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, Fp::new(U1024::from_u64(1), &params), Fp::new(U1024::from_u64(1), &params));
     ///
     /// let p = curve.identity();
     /// let r = p.double();
@@ -313,10 +299,12 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
         let yyyy = yy * yy;
         let zz = self.z * self.z;
 
-        let two = FieldElement::new(U1024::from_u64(2), self.curve.params);
+        let two_val = U1024::from_u64(2);
+        let two = Fp::new(two_val, self.curve.params);
         let s = two * ((self.x * yy) * two);
 
-        let three = FieldElement::new(U1024::from_u64(3), self.curve.params);
+        let three_val = U1024::from_u64(3);
+        let three = Fp::new(three_val, self.curve.params);
         let zzzz = zz * zz;
         let m = (three * xx) + (self.curve.a * zzzz);
 
@@ -324,7 +312,8 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
 
         let z_new = (self.y * self.z) * two;
 
-        let eight = FieldElement::new(U1024::from_u64(8), self.curve.params);
+        let eight_val = U1024::from_u64(8);
+        let eight = Fp::new(eight_val, self.curve.params);
         let t = eight * yyyy;
         let y_new = (m * (s - x_new)) - t;
 
@@ -345,28 +334,30 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     ///
     /// ```
     /// use mathlib::{U1024, BigInt};
-    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use mathlib::field::montgomery::MontgomeryParams;
     /// use curvelib::models::short_weierstrass::WeierstrassCurve;
     /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use curvelib::algebra::fields::fp::Fp;
+    /// use curvelib::traits::Field;
     ///
     /// let p = U1024::from_u64(17);
     /// let params = MontgomeryParams::new(p, U1024::zero());
-    /// let a = FieldElement::new(U1024::from_u64(1), &params);
-    /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
+    /// let a = Fp::new(U1024::from_u64(1), &params);
+    /// let b = Fp::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, Fp::new(U1024::from_u64(1), &params), Fp::new(U1024::from_u64(1), &params));
     ///
     /// let p = curve.identity();
     /// let (x, y) = p.to_affine();
-    /// assert_eq!(x, FieldElement::zero(&params));
-    /// assert_eq!(y, FieldElement::zero(&params));
+    /// assert_eq!(x, Fp::zero(&params));
+    /// assert_eq!(y, Fp::zero(&params));
     /// ```
-    fn to_affine(&self) -> (FieldElement<'a>, FieldElement<'a>) {
+    fn to_affine(&self) -> (Fp<'a>, Fp<'a>) {
         if self.is_identity() {
-            let zero = FieldElement::zero(self.curve.params);
+            let zero = Fp::zero(self.curve.params);
             return (zero, zero);
         }
 
-        let z_inv = self.z.inv();
+        let z_inv = self.z.inv().unwrap();
         let z2_inv = z_inv * z_inv;
         let z3_inv = z2_inv * z_inv;
 
@@ -384,15 +375,17 @@ impl<'a> ProjectivePoint for SWPoint<'a> {
     ///
     /// ```
     /// use mathlib::{U1024, BigInt};
-    /// use mathlib::field::{element::FieldElement, montgomery::MontgomeryParams};
+    /// use mathlib::field::montgomery::MontgomeryParams;
     /// use curvelib::models::short_weierstrass::{WeierstrassCurve, SWPoint};
     /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use curvelib::algebra::fields::fp::Fp;
+    /// use curvelib::traits::Field;
     ///
     /// let p = U1024::from_u64(17);
     /// let params = MontgomeryParams::new(p, U1024::zero());
-    /// let a = FieldElement::new(U1024::from_u64(1), &params);
-    /// let b = FieldElement::new(U1024::from_u64(1), &params);
-    /// let curve = WeierstrassCurve::new(a, b, &params, &params, U1024::from_u64(1), U1024::from_u64(1));
+    /// let a = Fp::new(U1024::from_u64(1), &params);
+    /// let b = Fp::new(U1024::from_u64(1), &params);
+    /// let curve = WeierstrassCurve::new(a, b, &params, &params, Fp::new(U1024::from_u64(1), &params), Fp::new(U1024::from_u64(1), &params));
     ///
     /// let p = curve.identity();
     /// let k = U1024::from_u64(3);

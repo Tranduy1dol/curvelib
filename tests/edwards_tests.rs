@@ -1,12 +1,10 @@
 use curvelib::{
-    curves::tiny_jubjub,
+    algebra::fields::fp::Fp,
+    instances::tiny_jubjub,
     models::{short_weierstrass::WeierstrassCurve, twisted_edwards::TePoint},
     traits::{Curve, ProjectivePoint},
 };
-use mathlib::{
-    BigInt, U1024,
-    field::{element::FieldElement, montgomery::MontgomeryParams},
-};
+use mathlib::{BigInt, U1024, field::montgomery::MontgomeryParams};
 
 #[test]
 fn test_tiny_jubjub_addition() {
@@ -14,15 +12,15 @@ fn test_tiny_jubjub_addition() {
     let params = curve.params;
 
     let p1 = TePoint::new_affine(
-        FieldElement::new(U1024::from_u64(0), params),
-        FieldElement::new(U1024::from_u64(1), params),
+        Fp::new(U1024::from_u64(0), params),
+        Fp::new(U1024::from_u64(1), params),
         &curve,
     );
     assert!(p1.is_identity());
 
     let p2 = TePoint::new_affine(
-        FieldElement::new(U1024::from_u64(1), params),
-        FieldElement::new(U1024::from_u64(2), params),
+        Fp::new(U1024::from_u64(1), params),
+        Fp::new(U1024::from_u64(2), params),
         &curve,
     );
 
@@ -54,8 +52,8 @@ fn test_tiny_jubjub_addition() {
 /// p_val.0[0] = 43;
 /// let params = MontgomeryParams::new(p_val, U1024::zero());
 ///
-/// let a = FieldElement::new(U1024::from_u64(23), &params);
-/// let b = FieldElement::new(U1024::from_u64(42), &params);
+/// let a = Fp::new(U1024::from_u64(23), &params);
+/// let b = Fp::new(U1024::from_u64(42), &params);
 /// let curve = WeierstrassCurve::new(a, b, &params);
 ///
 /// let g = curve.identity();
@@ -69,15 +67,15 @@ fn test_tiny_curve_operations() {
     p_val.0[0] = 43;
     let params = MontgomeryParams::new(p_val, U1024::zero());
 
-    let a = FieldElement::new(U1024::from_u64(23), &params);
-    let b = FieldElement::new(U1024::from_u64(42), &params);
+    let a = Fp::new(U1024::from_u64(23), &params);
+    let b = Fp::new(U1024::from_u64(42), &params);
     let curve = WeierstrassCurve::new(
         a,
         b,
         &params,
         &params,
-        U1024::from_u64(1),
-        U1024::from_u64(1),
+        Fp::new(U1024::from_u64(1), &params),
+        Fp::new(U1024::from_u64(1), &params),
     );
 
     let g = curve.identity();

@@ -1,4 +1,4 @@
-use curvelib::{curves::tiny_jubjub, traits::Curve};
+use curvelib::{instances::tiny_jubjub, traits::Curve};
 use mathlib::{BigInt, U1024};
 
 #[test]

@@ -1,9 +1,9 @@
 use std::sync::OnceLock;
 
-use mathlib::field::element::FieldElement;
 use mathlib::field::montgomery::MontgomeryParams;
 use mathlib::{BigInt, U1024};
 
+use crate::algebra::fields::fp::Fp;
 use crate::models::twisted_edwards::EdwardsCurve;
 
 static PARAMS: OnceLock<MontgomeryParams> = OnceLock::new();
@@ -36,8 +36,8 @@ pub fn get_generator_coords() -> (U1024, U1024) {
 pub fn get_curve() -> EdwardsCurve<'static> {
     let params = get_tiny_params();
     let scalar_params = get_scalar_params();
-    let a = FieldElement::new(U1024::from_u64(3), params);
-    let d = FieldElement::new(U1024::from_u64(8), params);
+    let a = Fp::new(U1024::from_u64(3), params);
+    let d = Fp::new(U1024::from_u64(8), params);
 
     let (gen_x_val, gen_y_val) = get_generator_coords();
     EdwardsCurve::new(a, d, params, scalar_params, gen_x_val, gen_y_val)

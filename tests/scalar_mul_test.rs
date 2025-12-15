@@ -1,9 +1,10 @@
 use curvelib::{
-    curves::tiny_jubjub,
+    algebra::fields::fp::Fp,
+    instances::tiny_jubjub,
     models::twisted_edwards::TePoint,
     traits::{Curve, ProjectivePoint},
 };
-use mathlib::{BigInt, FieldElement, U1024};
+use mathlib::{BigInt, U1024};
 
 #[test]
 fn test_scalar_multiplication() {
@@ -14,8 +15,8 @@ fn test_scalar_multiplication() {
     // 3*3^2 + 0^2 = 27 = 1 mod 13
     // 1 + 8*3^2*0^2 = 1 mod 13
     let p = TePoint::new_affine(
-        FieldElement::new(U1024::from_u64(3), params),
-        FieldElement::new(U1024::from_u64(0), params),
+        Fp::new(U1024::from_u64(3), params),
+        Fp::new(U1024::from_u64(0), params),
         &curve,
     );
 
