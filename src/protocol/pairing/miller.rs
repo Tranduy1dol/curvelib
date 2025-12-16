@@ -1,5 +1,4 @@
-use mathlib::field::montgomery::MontgomeryParams;
-use mathlib::{BigInt, FieldElement, U1024};
+use mathlib::{MontgomeryParams, U1024, fp, u1024};
 
 use crate::{
     algebra::fields::{Fp, Fp2, Fp6},
@@ -18,8 +17,8 @@ fn calculate_slope<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>) -> Option<Fp<'a>> {
 
     if x1 == x2 && y1 == y2 {
         // Tangent: lambda = (3x1^2 + a) / 2y1
-        let three = Fp::new(U1024::from_u64(3), t.curve.params);
-        let two = Fp::new(U1024::from_u64(2), t.curve.params);
+        let three = fp!(u1024!(3), t.curve.params);
+        let two = fp!(u1024!(2), t.curve.params);
 
         let num = (x1 * x1 * three) + t.curve.a;
         let den = y1 * two;
@@ -29,7 +28,7 @@ fn calculate_slope<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>) -> Option<Fp<'a>> {
             return None;
         }
 
-        Some(num * den.inv().unwrap())
+        Some(num * Field::inv(&den).unwrap())
     } else {
         // Chord: lambda = (y2 - y1) / (x2 - x1)
         let num = y2 - y1;
@@ -40,7 +39,7 @@ fn calculate_slope<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>) -> Option<Fp<'a>> {
             return None;
         }
 
-        Some(num * den.inv().unwrap())
+        Some(num * Field::inv(&den).unwrap())
     }
 }
 
@@ -69,8 +68,8 @@ fn evaluate_line<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>, q: &G2Projective<'a>) -
         (q.x * z2, q.y * z3)
     };
 
-    let zero = FieldElement::zero(t.curve.params);
-    let z_fp2 = Fp2::new(Fp::from(zero), Fp::from(zero));
+    let zero = Fp::zero(t.curve.params);
+    let z_fp2 = Fp2::new(zero, zero);
 
     // Pattern-match on the slope to handle vertical vs. non-vertical lines
     let lambda_opt = calculate_slope(t, p);
@@ -79,9 +78,9 @@ fn evaluate_line<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>, q: &G2Projective<'a>) -
         Some(lambda) => {
             // Non-vertical line: (yq - yt) - lambda * (xq - xt)
             // Embed Fp -> Fp2 (imaginary part = 0)
-            let yt_fp2 = Fp2::new(yt, Fp::from(zero));
-            let xt_fp2 = Fp2::new(xt, Fp::from(zero));
-            let lambda_fp2 = Fp2::new(lambda, Fp::from(zero));
+            let yt_fp2 = Fp2::new(yt, zero);
+            let xt_fp2 = Fp2::new(xt, zero);
+            let lambda_fp2 = Fp2::new(lambda, zero);
 
             let term1 = yq - yt_fp2;
             let term2 = lambda_fp2 * (xq - xt_fp2);
@@ -89,7 +88,7 @@ fn evaluate_line<'a>(t: &G1Affine<'a>, p: &G1Affine<'a>, q: &G2Projective<'a>) -
         }
         None => {
             // Vertical line: xq - xt
-            let xt_fp2 = Fp2::new(xt, Fp::from(zero));
+            let xt_fp2 = Fp2::new(xt, zero);
             xq - xt_fp2
         }
     };
@@ -137,23 +136,19 @@ pub fn miller_loop<'a>(p: &G1Affine<'a>, q: &G2Projective<'a>, r_order: U1024) -
 /// use curvelib::{
 ///     algebra::fields::{Fp, Fp2},
 ///     protocol::pairing::miller::generate_xi_fp2,
-///     traits::Field,
 /// };
-/// use mathlib::field::montgomery::MontgomeryParams;
-/// use mathlib::{BigInt, FieldElement, U1024};
+/// use mathlib::{u1024, mont};
 ///
-/// let p_val = U1024::from_u64(43);
-/// let params = MontgomeryParams::new(p_val, U1024::zero());
+/// let p_val = u1024!(43);
+/// let params = mont!(p_val, u1024!(0));
 ///
 /// let xi = generate_xi_fp2(&params);
 /// let expected = Fp2::new(
-///     Fp::from(FieldElement::zero(&params)),
-///     Fp::from(FieldElement::one(&params))
+///     Fp::zero(&params),
+///     Fp::one(&params)
 /// );
 /// assert_eq!(xi, expected);
 /// ```
 pub fn generate_xi_fp2(params: &MontgomeryParams) -> Fp2<'_> {
-    let z = FieldElement::zero(params);
-    let o = FieldElement::one(params);
-    Fp2::new(Fp::from(z), Fp::from(o))
+    Fp2::new(Fp::zero(params), Fp::one(params))
 }

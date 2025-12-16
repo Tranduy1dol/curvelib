@@ -18,13 +18,12 @@ use crate::{algebra::fields::Fp6, traits::Field};
 /// use curvelib::instances::bls6_6::get_params;
 /// use curvelib::protocol::pairing::final_exp::final_exponentiation;
 /// use curvelib::traits::Field;
-/// use mathlib::{U1024, BigInt};
 ///
 /// let params = get_params();
 ///
 /// // pick a simple, concrete base element
 /// let f = Fp6::one(params);
-/// let exp = U1024::from_u64(3);
+/// let exp = mathlib::u1024!(3);
 ///
 /// let r = final_exponentiation(&f, &exp);
 /// assert_eq!(r, f * f * f);

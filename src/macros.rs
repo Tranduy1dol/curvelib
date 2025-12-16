@@ -103,8 +103,8 @@ macro_rules! def_weierstrass_curve {
         pub struct $name<'a> {
             pub a: $field,
             pub b: $field,
-            pub params: &'a mathlib::field::montgomery::MontgomeryParams,
-            pub scalar_params: &'a mathlib::field::montgomery::MontgomeryParams,
+            pub params: &'a mathlib::MontgomeryParams,
+            pub scalar_params: &'a mathlib::MontgomeryParams,
             pub generator_x: $field,
             pub generator_y: $field,
         }
@@ -113,8 +113,8 @@ macro_rules! def_weierstrass_curve {
             pub fn new(
                 a: $field,
                 b: $field,
-                params: &'a mathlib::field::montgomery::MontgomeryParams,
-                scalar_params: &'a mathlib::field::montgomery::MontgomeryParams,
+                params: &'a mathlib::MontgomeryParams,
+                scalar_params: &'a mathlib::MontgomeryParams,
                 generator_x: $field,
                 generator_y: $field,
             ) -> Self {

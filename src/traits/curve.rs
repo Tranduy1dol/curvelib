@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 
-use mathlib::field::montgomery::MontgomeryParams;
-use mathlib::{BigInt, FieldElement, U1024};
+use mathlib::{MontgomeryParams, U1024, fp, u1024};
 
 use crate::protocol::signature::Signature;
 use crate::traits::point::ProjectivePoint;
@@ -27,10 +26,10 @@ pub trait Curve<'a>: Clone + Debug {
     /// ```rust
     /// use curvelib::instances::tiny_jubjub;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::u1024;
     ///
     /// let curve = tiny_jubjub::get_curve();
-    /// let sk = U1024::from_u64(3);
+    /// let sk = u1024!(3);
     /// let pk = curve.generate_keypair(&sk);
     /// assert!(!pk.is_identity());
     /// ```
@@ -56,16 +55,16 @@ pub trait Curve<'a>: Clone + Debug {
     /// # {
     /// use curvelib::instances::tiny_jubjub;
     /// use curvelib::traits::Curve;
-    /// use mathlib::U1024;
+    /// use mathlib::u1024;
     ///
     /// let curve = tiny_jubjub::get_curve();
-    /// let msg = U1024::from_u64(1);
-    /// let sk = U1024::from_u64(2);      // valid since scalar modulus is 5
-    /// let k  = U1024::from_u64(1);      // test nonce in [1, n-1]
+    /// let msg = u1024!(1);
+    /// let sk = u1024!(2);      // valid since scalar modulus is 5
+    /// let k  = u1024!(1);      // test nonce in [1, n-1]
     ///
     /// let sig = curve.sign_with_nonce(&msg, &sk, &k).expect("failed to sign");
-    /// assert_ne!(sig.r, U1024::zero());
-    /// assert_ne!(sig.s, U1024::zero());
+    /// assert_ne!(sig.r, u1024!(0));
+    /// assert_ne!(sig.s, u1024!(0));
     /// # }
     /// ```
     fn sign(
@@ -84,12 +83,12 @@ pub trait Curve<'a>: Clone + Debug {
 
         // 1. Validate inputs
         // Check if priv_key is zero
-        let priv_key_is_zero = priv_key == &U1024::zero();
+        let priv_key_is_zero = priv_key == &u1024!(0);
 
         // Manual comparison for priv_key >= n using div_rem
         // if priv_key >= n, then priv_key / n >= 1
         let (q, _) = priv_key.div_rem(n);
-        let priv_key_ge_n = q != U1024::zero();
+        let priv_key_ge_n = q != u1024!(0);
 
         if priv_key_is_zero || priv_key_ge_n {
             return Err(SignatureError::InvalidPrivateKey);
@@ -102,18 +101,11 @@ pub trait Curve<'a>: Clone + Debug {
             // 2. Generate random nonce k in [1, n-1]
             let mut k_bytes = [0u8; 128]; // 1024 bits
             rand::rng().fill_bytes(&mut k_bytes);
-
-            let mut limbs = [0u64; 16];
-            for i in 0..16 {
-                let mut ndata = [0u8; 8];
-                ndata.copy_from_slice(&k_bytes[i * 8..(i + 1) * 8]);
-                limbs[i] = u64::from_le_bytes(ndata);
-            }
-            let k_full = U1024(limbs); // Direct construction since field is pub
+            let k_full = U1024::from_le_bytes(&k_bytes);
 
             // k = k_full % n, skip if zero => ensures range [1, n-1]
             let (_, rem) = k_full.div_rem(n);
-            let k_nonce = if rem == U1024::zero() {
+            let k_nonce = if rem == u1024!(0) {
                 continue;
             } else {
                 rem
@@ -123,18 +115,18 @@ pub trait Curve<'a>: Clone + Debug {
             let r_point = generator.mul(&k_nonce);
             let (r_x_elem, _) = r_point.to_affine();
 
-            let r_val = r_x_elem.to_u1024_val();
-            let r_elem = FieldElement::new(r_val, scalar_params);
+            let r_val = r_x_elem.to_u1024();
+            let r_elem = fp!(r_val, scalar_params);
             let r = r_elem.to_u1024();
 
-            if r == U1024::zero() {
+            if r == u1024!(0) {
                 continue; // Retry with new k
             }
 
             // 4. s = k^(-1) * (z + r * d) mod n
-            let k_elem = FieldElement::new(k_nonce, scalar_params);
-            let z_elem = FieldElement::new(*message_hash, scalar_params);
-            let d_elem = FieldElement::new(*priv_key, scalar_params);
+            let k_elem = fp!(k_nonce, scalar_params);
+            let z_elem = fp!(*message_hash, scalar_params);
+            let d_elem = fp!(*priv_key, scalar_params);
 
             let k_inv = k_elem.inv();
             // s = k_inv * (z + r * d)
@@ -145,7 +137,7 @@ pub trait Curve<'a>: Clone + Debug {
             let s_elem = k_inv * z_rd;
 
             let s = s_elem.to_u1024();
-            if s == U1024::zero() {
+            if s == u1024!(0) {
                 continue; // Retry with new k
             }
 
@@ -186,10 +178,10 @@ pub trait Curve<'a>: Clone + Debug {
         let scalar_params = self.scalar_params();
         let n = &scalar_params.modulus;
 
-        if priv_key == &U1024::zero() || priv_key >= n {
+        if priv_key == &u1024!(0) || priv_key >= n {
             return Err(SignatureError::InvalidPrivateKey);
         }
-        if k_nonce == &U1024::zero() || k_nonce >= n {
+        if k_nonce == &u1024!(0) || k_nonce >= n {
             return Err(SignatureError::InvalidNonce);
         }
 
@@ -197,24 +189,24 @@ pub trait Curve<'a>: Clone + Debug {
 
         let r_point = generator.mul(k_nonce);
         let (r_x_elem, _) = r_point.to_affine();
-        let r_val = r_x_elem.to_u1024_val();
+        let r_val = r_x_elem.to_u1024();
 
-        let r_elem = FieldElement::new(r_val, scalar_params);
+        let r_elem = fp!(r_val, scalar_params);
         let r = r_elem.to_u1024();
 
-        if r == U1024::zero() {
+        if r == u1024!(0) {
             return Err(SignatureError::SignatureGenerationFailed); // r=0 is just bad luck/params for deterministic
         }
 
-        let k_elem = FieldElement::new(*k_nonce, scalar_params);
-        let z_elem = FieldElement::new(*message_hash, scalar_params);
-        let d_elem = FieldElement::new(*priv_key, scalar_params);
+        let k_elem = fp!(*k_nonce, scalar_params);
+        let z_elem = fp!(*message_hash, scalar_params);
+        let d_elem = fp!(*priv_key, scalar_params);
 
         let k_inv = k_elem.inv();
         let s_elem = k_inv * (z_elem + (r_elem * d_elem));
 
         let s = s_elem.to_u1024();
-        if s == U1024::zero() {
+        if s == u1024!(0) {
             return Err(SignatureError::SignatureGenerationFailed);
         }
 
@@ -238,12 +230,12 @@ pub trait Curve<'a>: Clone + Debug {
     /// # {
     /// use curvelib::instances::tiny_jubjub;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::U1024;
+    /// use mathlib::u1024;
     ///
     /// let curve = tiny_jubjub::get_curve();
-    /// let msg = U1024::from_u64(1);
-    /// let sk = U1024::from_u64(2);
-    /// let k  = U1024::from_u64(1);
+    /// let msg = u1024!(1);
+    /// let sk = u1024!(2);
+    /// let k  = u1024!(1);
     ///
     /// let pk = curve.generate_keypair(&sk);
     /// let sig = curve.sign_with_nonce(&msg, &sk, &k).unwrap();
@@ -273,16 +265,16 @@ pub trait Curve<'a>: Clone + Debug {
             return false;
         }
 
-        if signature.r == U1024::zero() || signature.r >= *n {
+        if signature.r == u1024!(0) || signature.r >= *n {
             return false;
         }
-        if signature.s == U1024::zero() || signature.s >= *n {
+        if signature.s == u1024!(0) || signature.s >= *n {
             return false;
         }
 
-        let s_elem = FieldElement::new(signature.s, scalar_params);
-        let z_elem = FieldElement::new(*message_hash, scalar_params);
-        let r_elem = FieldElement::new(signature.r, scalar_params);
+        let s_elem = fp!(signature.s, scalar_params);
+        let z_elem = fp!(*message_hash, scalar_params);
+        let r_elem = fp!(signature.r, scalar_params);
 
         let w = s_elem.inv();
 
@@ -298,12 +290,12 @@ pub trait Curve<'a>: Clone + Debug {
         }
 
         let (p_x, _) = p.to_affine();
-        let p_x_mod_n = FieldElement::new(p_x.to_u1024_val(), scalar_params);
+        let p_x_mod_n = fp!(p_x.to_u1024(), scalar_params);
 
         p_x_mod_n.to_u1024() == signature.r
     }
 }
 
 pub trait ToU1024 {
-    fn to_u1024_val(&self) -> U1024;
+    fn to_u1024(&self) -> U1024;
 }

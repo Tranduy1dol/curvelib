@@ -1,5 +1,4 @@
-use mathlib::field::montgomery::MontgomeryParams;
-use mathlib::{BigInt, FieldElement};
+use mathlib::{FieldElement, MontgomeryParams, fp, u1024};
 
 use crate::algebra::fields::{Fp, Fp2};
 use crate::def_weierstrass_curve;
@@ -21,11 +20,10 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     /// use curvelib::algebra::fields::{Fp, Fp2};
     /// use curvelib::models::SexticTwist;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{BigInt, FieldElement, U1024};
+    /// use mathlib::{mont, BigInt, FieldElement, u1024, MontgomeryParams};
     ///
     /// // Build a tiny, self-contained SexticTwist instance over F_13.
-    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let params = mont!(u1024!(13), u1024!(0));
     /// let zero = Fp::from(FieldElement::zero(&params));
     /// let one = Fp::from(FieldElement::one(&params));
     ///
@@ -69,10 +67,9 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     /// use curvelib::algebra::fields::{Fp, Fp2};
     /// use curvelib::models::SexticTwist;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{BigInt, FieldElement, U1024};
+    /// use mathlib::{mont, BigInt, FieldElement, u1024, MontgomeryParams};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let params = mont!(u1024!(13), u1024!(0));
     /// let zero = Fp::from(FieldElement::zero(&params));
     /// let one = Fp::from(FieldElement::one(&params));
     ///
@@ -113,10 +110,9 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     /// use curvelib::algebra::fields::{Fp, Fp2};
     /// use curvelib::models::SexticTwist;
     /// use curvelib::traits::Curve;
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{BigInt, FieldElement, U1024};
+    /// use mathlib::{mont, BigInt, FieldElement, u1024, MontgomeryParams};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let params = mont!(u1024!(13), u1024!(0));
     /// let zero = Fp::from(FieldElement::zero(&params));
     /// let one = Fp::from(FieldElement::one(&params));
     /// let curve = SexticTwist::new(
@@ -128,7 +124,7 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     ///     Fp2::new(one, zero),
     /// );
     /// let sp = curve.scalar_params();
-    /// assert_eq!(sp.modulus, U1024::from_u64(13));
+    /// assert_eq!(sp.modulus, u1024!(13));
     /// ```
     fn scalar_params(&self) -> &'a MontgomeryParams {
         self.scalar_params
@@ -145,10 +141,9 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     /// use curvelib::algebra::fields::{Fp, Fp2};
     /// use curvelib::models::SexticTwist;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{BigInt, FieldElement, U1024};
+    /// use mathlib::{mont, BigInt, FieldElement, u1024, MontgomeryParams};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let params = mont!(u1024!(13), u1024!(0));
     /// let zero = Fp::from(FieldElement::zero(&params));
     /// let one = Fp::from(FieldElement::one(&params));
     ///
@@ -166,9 +161,6 @@ impl<'a> Curve<'a> for SexticTwist<'a> {
     fn generator(&self) -> Self::Point {
         let x = self.generator_x;
         let y = self.generator_y;
-        // Note: unused variables kept for clarity/future use
-        let _zero_fp = FieldElement::zero(self.params);
-        let _zero_fp2 = Fp2::new(Fp::zero(self.params), Fp::zero(self.params));
 
         // Z = (1, 0) in Fp2 represents affine coordinates (Z = 1)
         let z = Fp2::new(
@@ -210,10 +202,9 @@ impl<'a> PartialEq for STPoint<'a> {
     /// use curvelib::algebra::fields::{Fp, Fp2};
     /// use curvelib::models::{SexticTwist, STPoint};
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{BigInt, FieldElement, U1024};
+    /// use mathlib::{mont, BigInt, FieldElement, u1024, MontgomeryParams};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let params = mont!(u1024!(13), u1024!(0));
     /// let zero = Fp::from(FieldElement::zero(&params));
     /// let one = Fp::from(FieldElement::one(&params));
     /// let curve = SexticTwist::new(
@@ -253,10 +244,9 @@ impl<'a> STPoint<'a> {
     /// ```rust
     /// use curvelib::algebra::fields::{Fp, Fp2};
     /// use curvelib::models::{SexticTwist, STPoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{BigInt, FieldElement, U1024};
+    /// use mathlib::{mont, BigInt, FieldElement, u1024, MontgomeryParams};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let params = mont!(u1024!(13), u1024!(0));
     /// let zero = Fp::from(FieldElement::zero(&params));
     /// let one = Fp::from(FieldElement::one(&params));
     /// let curve = SexticTwist::new(
@@ -316,10 +306,9 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
     /// use curvelib::algebra::fields::{Fp, Fp2};
     /// use curvelib::models::SexticTwist;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{BigInt, FieldElement, U1024};
+    /// use mathlib::{mont, BigInt, FieldElement, u1024, MontgomeryParams};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let params = mont!(u1024!(13), u1024!(0));
     /// let zero = Fp::from(FieldElement::zero(&params));
     /// let one = Fp::from(FieldElement::one(&params));
     /// let curve = SexticTwist::new(
@@ -336,7 +325,7 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
     fn is_identity(&self) -> bool {
         // A point is at infinity iff Z = 0 in Fp2
         // Check both components of Z are zero
-        self.z.c0.value == mathlib::U1024::zero() && self.z.c1.value == mathlib::U1024::zero()
+        self.z.c0.value == u1024!(0) && self.z.c1.value == u1024!(0)
     }
 
     /// Adds two points on the curve and returns their sum in Jacobian coordinates.
@@ -386,9 +375,9 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
         let v = u1 * hh; // V = U1 * HH
 
         // Create constant 2 in Fp2
-        let two_val = mathlib::U1024::from_u64(2);
+        let two_val = u1024!(2);
         let zero_fp = FieldElement::zero(self.curve.params);
-        let two_fp = FieldElement::new(two_val, self.curve.params);
+        let two_fp = fp!(two_val, self.curve.params);
         let two_fp2 = Fp2::new(Fp::from(two_fp), Fp::from(zero_fp));
 
         // X3 = R^2 - HHH - 2V
@@ -436,16 +425,16 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
 
         // Construct small integer constants in Fp2
         let zero_fp = FieldElement::zero(self.curve.params);
-        let two_val = mathlib::U1024::from_u64(2);
-        let two_fp = FieldElement::new(two_val, self.curve.params);
+        let two_val = u1024!(2);
+        let two_fp = fp!(two_val, self.curve.params);
         let two_fp2 = Fp2::new(Fp::from(two_fp), Fp::from(zero_fp));
 
         // S = 4XY^2 = 2 * ((X * YY) * 2)
         let s = two_fp2 * ((self.x * yy) * two_fp2);
 
         // M = 3X^2 + aZ^4 (slope of tangent line)
-        let three_val = mathlib::U1024::from_u64(3);
-        let three_fp = FieldElement::new(three_val, self.curve.params);
+        let three_val = u1024!(3);
+        let three_fp = fp!(three_val, self.curve.params);
         let three_fp2 = Fp2::new(Fp::from(three_fp), Fp::from(zero_fp));
 
         let zzzz = zz.square(); // Z^4
@@ -458,8 +447,8 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
         let z_new = (self.y * self.z) * two_fp2;
 
         // Y' = M(S - X') - 8YYYY
-        let eight_val = mathlib::U1024::from_u64(8);
-        let eight_fp = FieldElement::new(eight_val, self.curve.params);
+        let eight_val = u1024!(8);
+        let eight_fp = fp!(eight_val, self.curve.params);
         let eight_fp2 = Fp2::new(Fp::from(eight_fp), Fp::from(zero_fp));
 
         let t = eight_fp2 * yyyy;
@@ -485,10 +474,9 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
     /// use curvelib::algebra::fields::{Fp, Fp2};
     /// use curvelib::models::SexticTwist;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{BigInt, FieldElement, U1024};
+    /// use mathlib::{mont, BigInt, FieldElement, u1024, MontgomeryParams};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let params = mont!(u1024!(13), u1024!(0));
     /// let zero = Fp::from(FieldElement::zero(&params));
     /// let one = Fp::from(FieldElement::one(&params));
     /// let curve = SexticTwist::new(
@@ -537,10 +525,9 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
     /// use curvelib::algebra::fields::{Fp, Fp2};
     /// use curvelib::models::SexticTwist;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{BigInt, FieldElement, U1024};
+    /// use mathlib::{mont, BigInt, FieldElement, u1024, MontgomeryParams};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+    /// let params = mont!(u1024!(13), u1024!(0));
     /// let zero = Fp::from(FieldElement::zero(&params));
     /// let one = Fp::from(FieldElement::one(&params));
     /// let curve = SexticTwist::new(
@@ -553,7 +540,7 @@ impl<'a> ProjectivePoint<'a> for STPoint<'a> {
     /// );
     ///
     /// let p = curve.generator();
-    /// let k = U1024::from_u64(3);
+    /// let k = u1024!(3);
     /// let r = p.mul(&k);
     /// // group law sanity: 3P == P + P + P
     /// assert_eq!(r, p.add(&p).add(&p));

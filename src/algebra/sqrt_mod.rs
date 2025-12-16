@@ -1,4 +1,4 @@
-use mathlib::{BigInt, FieldElement, U1024};
+use mathlib::{BigInt, FieldElement, U1024, fp, u1024};
 
 /// Compute a modular square root of `n` in its prime field using the Tonelli–Shanks algorithm.
 ///
@@ -14,26 +14,25 @@ use mathlib::{BigInt, FieldElement, U1024};
 ///
 /// ```rust
 /// use curvelib::algebra::sqrt_mod::sqrt_mod;
-/// use mathlib::field::montgomery::MontgomeryParams;
-/// use mathlib::{FieldElement, U1024, BigInt};
+/// use mathlib::{fp, u1024, BigInt, mont};
 ///
 /// // Work in the tiny prime field F_13.
-/// let params = MontgomeryParams::new(U1024::from_u64(13), U1024::zero());
+/// let params = mont!(u1024!(13u64), u1024!(0u64));
 ///
 /// // 10 is a quadratic residue mod 13 (since 6^2 = 36 ≡ 10 mod 13).
-/// let n = FieldElement::new(U1024::from_u64(10), &params);
+/// let n = fp!(u1024!(10u64), &params);
 /// let r = sqrt_mod(&n).expect("10 should have a square root in F_13");
 /// assert_eq!(r * r, n);
 ///
 /// // 2 is a non-residue mod 13, so no square root exists.
-/// let n2 = FieldElement::new(U1024::from_u64(2), &params);
+/// let n2 = fp!(u1024!(2u64), &params);
 /// assert!(sqrt_mod(&n2).is_none());
 /// ```
 pub fn sqrt_mod<'a>(n: &FieldElement<'a>) -> Option<FieldElement<'a>> {
     let params = n.params;
     // Create field constants we'll need throughout
     let zero = FieldElement::zero(params);
-    let one = FieldElement::new(U1024::from_u64(1), params);
+    let one = fp!(u1024!(1u64), params);
 
     // Edge case: √0 = 0
     if *n == zero {
@@ -43,8 +42,8 @@ pub fn sqrt_mod<'a>(n: &FieldElement<'a>) -> Option<FieldElement<'a>> {
     // Step 1: Test quadratic residuosity using Euler's criterion
     // For prime p, n is a quadratic residue iff n^((p-1)/2) ≡ 1 (mod p)
     let p = params.modulus;
-    let u_one = U1024::from_u64(1);
-    let u_two = U1024::from_u64(2);
+    let u_one = u1024!(1u64);
+    let u_two = u1024!(2u64);
     let p_minus_1 = p - u_one; // p - 1
     let (legendre_exp, _) = p_minus_1.div_rem(&u_two); // (p-1)/2
 
@@ -73,7 +72,7 @@ pub fn sqrt_mod<'a>(n: &FieldElement<'a>) -> Option<FieldElement<'a>> {
     // In this case, r = n^((p+1)/4) is a square root
     if s == 1 {
         let p_plus_1 = p + u_one;
-        let u_four = U1024::from_u64(4);
+        let u_four = u1024!(4u64);
         let (exp, _) = p_plus_1.div_rem(&u_four); // (p+1)/4
         return Some(n.pow(exp));
     }
@@ -82,7 +81,7 @@ pub fn sqrt_mod<'a>(n: &FieldElement<'a>) -> Option<FieldElement<'a>> {
     // We need some element z where z^((p-1)/2) ≡ -1 (mod p)
     let mut z = u_two; // Start searching from 2
     let neg_one = zero - one; // -1 in the field
-    let mut z_elem = FieldElement::new(z, params);
+    let mut z_elem = fp!(z, params);
 
     // Search for a non-residue by testing successive integers
     loop {
@@ -90,7 +89,7 @@ pub fn sqrt_mod<'a>(n: &FieldElement<'a>) -> Option<FieldElement<'a>> {
             break; // Found a non-residue
         }
         z = z + u_one; // Try next integer
-        z_elem = FieldElement::new(z, params);
+        z_elem = fp!(z, params);
     }
 
     // Step 5: Initialize Tonelli-Shanks variables

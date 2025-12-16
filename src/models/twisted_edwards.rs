@@ -1,7 +1,6 @@
-use mathlib::field::montgomery::MontgomeryParams;
-use mathlib::{BigInt, U1024};
+use mathlib::{MontgomeryParams, U1024, fp, u1024};
 
-use crate::algebra::fields::fp::Fp;
+use crate::algebra::fields::Fp;
 use crate::traits::{Curve, Field, ProjectivePoint};
 
 impl<'a> Curve<'a> for EdwardsCurve<'a> {
@@ -14,16 +13,15 @@ impl<'a> Curve<'a> for EdwardsCurve<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint, Field};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::models::EdwardsCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
-    /// let a = Fp::new(U1024::from_u64(1), &params);
-    /// let d = Fp::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
+    /// let params = mont!(u1024!(17), u1024!(0));
+    /// let a = fp!(u1024!(1), &params);
+    /// let d = fp!(u1024!(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
     ///
     /// let id = curve.identity();
     /// let (x, y) = id.to_affine();
@@ -50,18 +48,16 @@ impl<'a> Curve<'a> for EdwardsCurve<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use mathlib::{U1024, BigInt};
-    /// use mathlib::field::{montgomery::MontgomeryParams};
-    /// use curvelib::models::twisted_edwards::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use curvelib::traits::Field;
-    /// use curvelib::algebra::fields::fp::Fp;
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::models::EdwardsCurve;
+    /// use curvelib::traits::Curve;
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let p = U1024::from_u64(17);
-    /// let params = MontgomeryParams::new(p, U1024::zero());
-    /// let a = Fp::new(U1024::from_u64(1), &params);
-    /// let d = Fp::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
+    /// let p = u1024!(17);
+    /// let params = mont!(p, u1024!(0));
+    /// let a = fp!(u1024!(1), &params);
+    /// let d = fp!(u1024!(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
     ///
     /// let x = Fp::zero(&params);
     /// let y = Fp::one(&params);
@@ -87,20 +83,19 @@ impl<'a> Curve<'a> for EdwardsCurve<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::models::EdwardsCurve;
     /// use curvelib::traits::Curve;
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
+    /// let params = mont!(u1024!(17), u1024!(0));
     /// let curve = EdwardsCurve::new(
-    ///     Fp::new(U1024::from_u64(1), &params),
-    ///     Fp::new(U1024::from_u64(2), &params),
+    ///     fp!(u1024!(1), &params),
+    ///     fp!(u1024!(2), &params),
     ///     &params,
     ///     &params,
-    ///     U1024::from_u64(0),
-    ///     U1024::from_u64(1),
+    ///     u1024!(0),
+    ///     u1024!(1),
     /// );
     /// let p1 = curve.scalar_params();
     /// let p2 = curve.scalar_params();
@@ -118,24 +113,23 @@ impl<'a> Curve<'a> for EdwardsCurve<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::models::EdwardsCurve;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
-    /// let a = Fp::new(U1024::from_u64(1), &params);
-    /// let d = Fp::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
+    /// let params = mont!(u1024!(17), u1024!(0));
+    /// let a = fp!(u1024!(1), &params);
+    /// let d = fp!(u1024!(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
     ///
     /// let g = curve.generator();
     /// let (gx, gy) = g.to_affine();
     /// assert!(curve.is_on_curve(&gx, &gy));
     /// ```
     fn generator(&self) -> Self::Point {
-        let x = Fp::new(self.generator_x, self.params);
-        let y = Fp::new(self.generator_y, self.params);
+        let x = fp!(self.generator_x, self.params);
+        let y = fp!(self.generator_y, self.params);
         let z = Fp::one(self.params);
         let t = x * y;
         TePoint {
@@ -169,19 +163,18 @@ impl<'a> EdwardsCurve<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::EdwardsCurve;
-    /// use curvelib::traits::Field;
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::models::EdwardsCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
+    /// let params = mont!(u1024!(17), u1024!(0));
     /// let scalar_params = &params;
     ///
     /// let a = Fp::one(&params);
-    /// let d = Fp::new(U1024::from_u64(5), &params);
-    /// let gx = U1024::from_u64(0);
-    /// let gy = U1024::from_u64(1);
+    /// let d = fp!(u1024!(5), &params);
+    /// let gx = u1024!(0);
+    /// let gy = u1024!(1);
     ///
     /// let curve = EdwardsCurve::new(a, d, &params, scalar_params, gx, gy);
     /// assert_eq!(curve.generator_x, gx);
@@ -244,16 +237,15 @@ impl<'a> TePoint<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::{EdwardsCurve, TePoint};
-    /// use curvelib::traits::{Curve, ProjectivePoint, Field};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::models::{EdwardsCurve, TePoint};
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
-    /// let a = Fp::new(U1024::from_u64(1), &params);
-    /// let d = Fp::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
+    /// let params = mont!(u1024!(17), u1024!(0));
+    /// let a = fp!(u1024!(1), &params);
+    /// let d = fp!(u1024!(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
     ///
     /// let x = Fp::zero(&params);
     /// let y = Fp::one(&params);
@@ -285,16 +277,15 @@ impl<'a> ProjectivePoint<'a> for TePoint<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::{EdwardsCurve, TePoint};
-    /// use curvelib::traits::{Curve, ProjectivePoint, Field};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::models::{EdwardsCurve, TePoint};
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
-    /// let a = Fp::new(U1024::from_u64(1), &params);
-    /// let d = Fp::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
+    /// let params = mont!(u1024!(17), u1024!(0));
+    /// let a = fp!(u1024!(1), &params);
+    /// let d = fp!(u1024!(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
     /// let id = TePoint::new_affine(Fp::zero(&params), Fp::one(&params), &curve);
     /// assert!(id.is_identity());
     /// ```
@@ -312,16 +303,14 @@ impl<'a> ProjectivePoint<'a> for TePoint<'a> {
     ///
     /// ```rust
     /// use std::ops::Add;
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::models::EdwardsCurve;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
-    /// let a = Fp::new(U1024::from_u64(1), &params);
-    /// let d = Fp::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
+    /// let params = mont!(u1024!(17), u1024!(0));
+    /// let a = fp!(u1024!(1), &params);
+    /// let d = fp!(u1024!(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
     ///
     /// let p = curve.identity();
     /// let q = curve.identity();
@@ -365,16 +354,14 @@ impl<'a> ProjectivePoint<'a> for TePoint<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::models::EdwardsCurve;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
-    /// let a = Fp::new(U1024::from_u64(1), &params);
-    /// let d = Fp::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
+    /// let params = mont!(u1024!(17), u1024!(0));
+    /// let a = fp!(u1024!(1), &params);
+    /// let d = fp!(u1024!(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
     ///
     /// let point = curve.identity();
     /// let doubled = point.double();
@@ -383,7 +370,7 @@ impl<'a> ProjectivePoint<'a> for TePoint<'a> {
     fn double(&self) -> Self {
         let a = self.x * self.x;
         let b = self.y * self.y;
-        let two = Fp::new(U1024::from_u64(2), self.curve.params);
+        let two = fp!(u1024!(2), self.curve.params);
         let c = two * (self.z * self.z);
 
         let d = self.curve.a * a;
@@ -421,16 +408,15 @@ impl<'a> ProjectivePoint<'a> for TePoint<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint, Field};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use curvelib::algebra::fields::Fp;
+    /// use curvelib::models::EdwardsCurve;
+    /// use curvelib::traits::{Curve, ProjectivePoint};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
-    /// let a = Fp::new(U1024::from_u64(1), &params);
-    /// let d = Fp::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
+    /// let params = mont!(u1024!(17), u1024!(0));
+    /// let a = fp!(u1024!(1), &params);
+    /// let d = fp!(u1024!(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
     ///
     /// let pt = curve.identity();
     /// let (x, y) = pt.to_affine();
@@ -438,14 +424,14 @@ impl<'a> ProjectivePoint<'a> for TePoint<'a> {
     /// assert_eq!(y, Fp::one(curve.params));
     /// ```
     fn to_affine(&self) -> (Fp<'a>, Fp<'a>) {
-        if self.z.value == U1024::zero() {
+        if self.z.value == u1024!(0) {
             // Access via deref
             let zero = Fp::zero(self.curve.params);
             let one = Fp::one(self.curve.params);
             return (zero, one);
         }
 
-        let z_inv = self.z.inv().unwrap();
+        let z_inv = Field::inv(&self.z).unwrap();
         let x_aff = self.x * z_inv;
         let y_aff = self.y * z_inv;
         (x_aff, y_aff)
@@ -458,19 +444,17 @@ impl<'a> ProjectivePoint<'a> for TePoint<'a> {
     /// # Examples
     ///
     /// ```rust
-    /// use curvelib::algebra::fields::fp::Fp;
-    /// use curvelib::models::twisted_edwards::EdwardsCurve;
+    /// use curvelib::models::EdwardsCurve;
     /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::field::montgomery::MontgomeryParams;
-    /// use mathlib::{U1024, BigInt};
+    /// use mathlib::{u1024, fp, mont};
     ///
-    /// let params = MontgomeryParams::new(U1024::from_u64(17), U1024::zero());
-    /// let a = Fp::new(U1024::from_u64(1), &params);
-    /// let d = Fp::new(U1024::from_u64(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, U1024::from_u64(0), U1024::from_u64(1));
+    /// let params = mont!(u1024!(17), u1024!(0));
+    /// let a = fp!(u1024!(1), &params);
+    /// let d = fp!(u1024!(2), &params);
+    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
     ///
     /// let p = curve.identity();
-    /// let k = U1024::zero();
+    /// let k = u1024!(0);
     /// let r = p.mul(&k);
     /// assert!(r.is_identity());
     /// ```
