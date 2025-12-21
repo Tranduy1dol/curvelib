@@ -11,19 +11,18 @@ pub use signature::Signature;
 
 use mathlib::FieldElement;
 
-use crate::models::sw::Projective;
 use crate::protocol::keys::{PrivateKey, PublicKey};
-use crate::traits::ShortWeierstrassConfig;
+use crate::traits::{CurveConfig, ProjectivePoint};
 
 /// Signing engine for ECDSA operations.
 ///
-/// Generic over `P: ShortWeierstrassConfig` which defines the curve.
-/// All arithmetic is performed using `FieldElement<P::ScalarField>`.
-pub struct SigningEngine<P: ShortWeierstrassConfig> {
-    _marker: std::marker::PhantomData<P>,
+/// Generic over `C: CurveConfig` which defines the curve.
+/// All arithmetic is performed using `FieldElement<C::ScalarField>`.
+pub struct SigningEngine<C: CurveConfig> {
+    _marker: std::marker::PhantomData<C>,
 }
 
-impl<P: ShortWeierstrassConfig> SigningEngine<P> {
+impl<C: CurveConfig> SigningEngine<C> {
     /// Create a new signing engine.
     pub fn new() -> Self {
         Self {
@@ -48,9 +47,9 @@ impl<P: ShortWeierstrassConfig> SigningEngine<P> {
     /// A `Signature` on success, or `SignatureError` on failure.
     pub fn sign(
         &self,
-        message_hash: &FieldElement<P::ScalarField>,
-        private_key: &PrivateKey<P>,
-        nonce: &FieldElement<P::ScalarField>,
+        message_hash: &FieldElement<C::ScalarField>,
+        private_key: &PrivateKey<C>,
+        nonce: &FieldElement<C::ScalarField>,
     ) -> Result<Signature, SignatureError> {
         // Validate nonce is not zero
         if nonce.is_zero() {
@@ -59,11 +58,11 @@ impl<P: ShortWeierstrassConfig> SigningEngine<P> {
 
         // Validate private key is not zero
         if private_key.is_zero() {
-            return Err(SignatureError::InvalidNonce);
+            return Err(SignatureError::InvalidPrivateKey);
         }
 
         // Compute R = k * G
-        let generator = Projective::<P>::generator();
+        let generator = C::generator();
         let k_scalar = nonce.to_u1024();
         let r_point = generator.mul(&k_scalar);
 
@@ -72,8 +71,9 @@ impl<P: ShortWeierstrassConfig> SigningEngine<P> {
         }
 
         // r = x(R) mod n
-        let r_affine = r_point.to_affine();
-        let r = FieldElement::<P::ScalarField>::new(r_affine.x.to_u1024());
+        // r = x(R) mod n
+        let (rx, _) = r_point.to_affine();
+        let r = FieldElement::<C::ScalarField>::new(rx.to_u1024());
 
         if r.is_zero() {
             return Err(SignatureError::InvalidNonce);
@@ -113,12 +113,12 @@ impl<P: ShortWeierstrassConfig> SigningEngine<P> {
     pub fn verify(
         &self,
         signature: &Signature,
-        message_hash: &FieldElement<P::ScalarField>,
-        public_key: &PublicKey<P>,
+        message_hash: &FieldElement<C::ScalarField>,
+        public_key: &PublicKey<C>,
     ) -> bool {
         // Convert signature components to scalar field elements
-        let r = FieldElement::<P::ScalarField>::new(*signature.r());
-        let s = FieldElement::<P::ScalarField>::new(*signature.s());
+        let r = FieldElement::<C::ScalarField>::new(*signature.r());
+        let s = FieldElement::<C::ScalarField>::new(*signature.s());
 
         // Validate signature components are not zero
         if r.is_zero() || s.is_zero() {
@@ -140,7 +140,7 @@ impl<P: ShortWeierstrassConfig> SigningEngine<P> {
         let u2 = r * s_inv;
 
         // R' = u1 * G + u2 * Q
-        let generator = Projective::<P>::generator();
+        let generator = C::generator();
         let u1_g = generator.mul(&u1.to_u1024());
         let u2_q = public_key.point().mul(&u2.to_u1024());
         let r_prime = u1_g.add(&u2_q);
@@ -150,14 +150,14 @@ impl<P: ShortWeierstrassConfig> SigningEngine<P> {
         }
 
         // Verify: r == x(R') mod n
-        let r_prime_affine = r_prime.to_affine();
-        let r_prime_x = FieldElement::<P::ScalarField>::new(r_prime_affine.x.to_u1024());
+        let (rpx, _) = r_prime.to_affine();
+        let r_prime_x = FieldElement::<C::ScalarField>::new(rpx.to_u1024());
 
         r == r_prime_x
     }
 }
 
-impl<P: ShortWeierstrassConfig> Default for SigningEngine<P> {
+impl<C: CurveConfig> Default for SigningEngine<C> {
     fn default() -> Self {
         Self::new()
     }
@@ -228,9 +228,22 @@ mod tests {
         let keypair = key_engine.keypair_from_scalar(U1024::from_u64(5));
         let message_hash = FieldElement::<Bls6_6ScalarField>::new(U1024::from_u64(7));
 
-        // Zero nonce should fail
+        // Zero nonce should fail with InvalidNonce
         let zero_nonce = FieldElement::<Bls6_6ScalarField>::zero();
         let result = signing_engine.sign(&message_hash, keypair.private_key(), &zero_nonce);
-        assert!(result.is_err());
+        assert_eq!(result.err(), Some(SignatureError::InvalidNonce));
+    }
+
+    #[test]
+    fn test_invalid_private_key() {
+        let signing_engine = SigningEngine::<Bls6_6G1Config>::new();
+
+        // Zero private key should fail with InvalidPrivateKey
+        let zero_priv = PrivateKey::<Bls6_6G1Config>::new(U1024::from_u64(0));
+        let message_hash = FieldElement::<Bls6_6ScalarField>::one();
+        let nonce = FieldElement::<Bls6_6ScalarField>::one();
+
+        let result = signing_engine.sign(&message_hash, &zero_priv, &nonce);
+        assert_eq!(result.err(), Some(SignatureError::InvalidPrivateKey));
     }
 }

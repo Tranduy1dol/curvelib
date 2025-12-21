@@ -4,32 +4,31 @@ use std::marker::PhantomData;
 
 use mathlib::{FieldElement, U1024};
 
-use crate::models::sw::Projective;
-use crate::traits::ShortWeierstrassConfig;
+use crate::traits::{CurveConfig, ProjectivePoint};
 
 /// A private key (scalar in the curve's scalar field).
 ///
-/// The scalar is stored as a `FieldElement<P::ScalarField>` to ensure
+/// The scalar is stored as a `FieldElement<C::ScalarField>` to ensure
 /// automatic modular reduction and valid range.
 #[derive(Clone, Debug)]
-pub struct PrivateKey<P: ShortWeierstrassConfig> {
-    scalar: FieldElement<P::ScalarField>,
-    _marker: PhantomData<P>,
+pub struct PrivateKey<C: CurveConfig> {
+    scalar: FieldElement<C::ScalarField>,
+    _marker: PhantomData<C>,
 }
 
-impl<P: ShortWeierstrassConfig> PrivateKey<P> {
+impl<C: CurveConfig> PrivateKey<C> {
     /// Create a new private key from a U1024 scalar.
     ///
     /// The scalar is automatically reduced modulo the curve order.
     pub fn new(scalar: U1024) -> Self {
         Self {
-            scalar: FieldElement::<P::ScalarField>::new(scalar),
+            scalar: FieldElement::<C::ScalarField>::new(scalar),
             _marker: PhantomData,
         }
     }
 
     /// Create a new private key from a FieldElement.
-    pub fn from_field_element(scalar: FieldElement<P::ScalarField>) -> Self {
+    pub fn from_field_element(scalar: FieldElement<C::ScalarField>) -> Self {
         Self {
             scalar,
             _marker: PhantomData,
@@ -37,7 +36,7 @@ impl<P: ShortWeierstrassConfig> PrivateKey<P> {
     }
 
     /// Get the scalar as a FieldElement.
-    pub fn scalar(&self) -> &FieldElement<P::ScalarField> {
+    pub fn scalar(&self) -> &FieldElement<C::ScalarField> {
         &self.scalar
     }
 
@@ -89,30 +88,30 @@ impl<P: ShortWeierstrassConfig> PrivateKey<P> {
     }
 }
 
-impl<P: ShortWeierstrassConfig> PartialEq for PrivateKey<P> {
+impl<C: CurveConfig> PartialEq for PrivateKey<C> {
     fn eq(&self, other: &Self) -> bool {
         self.scalar == other.scalar
     }
 }
 
-impl<P: ShortWeierstrassConfig> Eq for PrivateKey<P> {}
+impl<C: CurveConfig> Eq for PrivateKey<C> {}
 
 /// A public key (curve point).
 ///
 /// Wraps a projective point on the curve.
 #[derive(Clone, Debug)]
-pub struct PublicKey<P: ShortWeierstrassConfig> {
-    point: Projective<P>,
+pub struct PublicKey<C: CurveConfig> {
+    point: C::Projective,
 }
 
-impl<P: ShortWeierstrassConfig> PublicKey<P> {
+impl<C: CurveConfig> PublicKey<C> {
     /// Create a new public key from a curve point.
-    pub fn new(point: Projective<P>) -> Self {
+    pub fn new(point: C::Projective) -> Self {
         Self { point }
     }
 
     /// Get the curve point.
-    pub fn point(&self) -> &Projective<P> {
+    pub fn point(&self) -> &C::Projective {
         &self.point
     }
 
@@ -122,24 +121,24 @@ impl<P: ShortWeierstrassConfig> PublicKey<P> {
     }
 }
 
-impl<P: ShortWeierstrassConfig> PartialEq for PublicKey<P> {
+impl<C: CurveConfig> PartialEq for PublicKey<C> {
     fn eq(&self, other: &Self) -> bool {
         self.point == other.point
     }
 }
 
-impl<P: ShortWeierstrassConfig> Eq for PublicKey<P> {}
+impl<C: CurveConfig> Eq for PublicKey<C> {}
 
 /// A key pair containing both private and public keys.
 #[derive(Clone, Debug)]
-pub struct KeyPair<P: ShortWeierstrassConfig> {
-    private_key: PrivateKey<P>,
-    public_key: PublicKey<P>,
+pub struct KeyPair<C: CurveConfig> {
+    private_key: PrivateKey<C>,
+    public_key: PublicKey<C>,
 }
 
-impl<P: ShortWeierstrassConfig> KeyPair<P> {
+impl<C: CurveConfig> KeyPair<C> {
     /// Create a new key pair.
-    pub fn new(private_key: PrivateKey<P>, public_key: PublicKey<P>) -> Self {
+    pub fn new(private_key: PrivateKey<C>, public_key: PublicKey<C>) -> Self {
         Self {
             private_key,
             public_key,
@@ -147,17 +146,17 @@ impl<P: ShortWeierstrassConfig> KeyPair<P> {
     }
 
     /// Get the private key.
-    pub fn private_key(&self) -> &PrivateKey<P> {
+    pub fn private_key(&self) -> &PrivateKey<C> {
         &self.private_key
     }
 
     /// Get the public key.
-    pub fn public_key(&self) -> &PublicKey<P> {
+    pub fn public_key(&self) -> &PublicKey<C> {
         &self.public_key
     }
 
     /// Consume the key pair and return individual keys.
-    pub fn into_parts(self) -> (PrivateKey<P>, PublicKey<P>) {
+    pub fn into_parts(self) -> (PrivateKey<C>, PublicKey<C>) {
         (self.private_key, self.public_key)
     }
 }
@@ -182,14 +181,13 @@ mod tests {
         let large = U1024::from_u64(100); // larger than order 13
         let key = PrivateKey::<Bls6_6G1Config>::new(large);
         // Should be reduced: 100 mod 13 = 9
-        let reduced = key.to_u1024().0[0];
-        assert_eq!(reduced, 100 % 13);
+        assert_eq!(key.to_u1024(), U1024::from_u64(100 % 13));
     }
 
     #[test]
     fn test_public_key_from_generator() {
-        let g = Projective::<Bls6_6G1Config>::generator();
-        let pk = PublicKey::new(g.clone());
+        let g = <Bls6_6G1Config as CurveConfig>::generator();
+        let pk = PublicKey::<Bls6_6G1Config>::new(g.clone());
         assert!(!pk.is_identity());
         assert_eq!(pk.point(), &g);
     }

@@ -9,6 +9,8 @@ pub enum SignatureError {
     MalformedSignature,
     /// The public key is invalid.
     InvalidPublicKey,
+    /// The private key is invalid.
+    InvalidPrivateKey,
     /// The scalar is out of range.
     ScalarOutOfRange,
 }
@@ -19,6 +21,7 @@ impl std::fmt::Display for SignatureError {
             SignatureError::InvalidNonce => write!(f, "invalid nonce"),
             SignatureError::MalformedSignature => write!(f, "malformed signature"),
             SignatureError::InvalidPublicKey => write!(f, "invalid public key"),
+            SignatureError::InvalidPrivateKey => write!(f, "invalid private key"),
             SignatureError::ScalarOutOfRange => write!(f, "scalar out of range"),
         }
     }

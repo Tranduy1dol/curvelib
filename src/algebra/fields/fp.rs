@@ -1,8 +1,8 @@
 //! Field element types for elliptic curve cryptography.
 //!
 //! This module provides type aliases and implementations for field elements
-//! used in curve arithmetic. With mathlib 1.0.0, field elements are now
-//! generic over a `FieldConfig` type rather than using lifetime parameters.
+//! used in curve arithmetic. Field elements are generic over a `FieldConfig`
+//! type rather than using lifetime parameters.
 
 use mathlib::{FieldConfig, FieldElement, U1024};
 

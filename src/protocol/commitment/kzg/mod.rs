@@ -94,15 +94,32 @@ impl<C: FieldConfig> PolynomialCommitment<C> for Kzg<C> {
     type Params = KzgParams<C>;
 
     fn commit(params: &Self::Params, polynomial: &Polynomial<C>) -> Self::Commitment {
+        // Guard against empty powers_of_tau
+        if params.powers_of_tau.is_empty() {
+            panic!("KZG params has empty powers_of_tau");
+        }
+
         let coeffs = polynomial.to_vec();
+
+        // Validate polynomial degree against SRS capacity
+        if coeffs.len() > params.powers_of_tau.len() {
+            panic!(
+                "Polynomial degree {} exceeds SRS size {} (max degree {})",
+                coeffs.len() - 1,
+                params.powers_of_tau.len(),
+                params.powers_of_tau.len() - 1
+            );
+        }
+
+        // Initialize with identity from the first point's curve
         let mut c = params.powers_of_tau[0].curve.identity();
 
+        // Commit: C = Σ cᵢ · [τⁱ]G₁
+        // Now safe to iterate without bounds checking since we validated above
         for (i, coeff) in coeffs.iter().enumerate() {
-            if i < params.powers_of_tau.len() {
-                let scalar = coeff.to_u1024();
-                let term = params.powers_of_tau[i].mul(&scalar);
-                c = c.add(&term);
-            }
+            let scalar = coeff.to_u1024();
+            let term = params.powers_of_tau[i].mul(&scalar);
+            c = c.add(&term);
         }
         c
     }
@@ -133,6 +150,11 @@ impl<C: FieldConfig> PolynomialCommitment<C> for Kzg<C> {
         value: &FieldElement<C>,
         proof: &Self::Proof,
     ) -> bool {
+        // Guard against empty powers_of_tau
+        if params.powers_of_tau.is_empty() {
+            return false;
+        }
+
         let z_scalar = point.to_u1024();
         let y_scalar = value.to_u1024();
 
@@ -192,17 +214,95 @@ mod tests {
         ]);
 
         // Commit
-        let commitment = Kzg::commit(&params, &poly);
+        let _commitment = Kzg::commit(&params, &poly);
 
         // Open at z = 2: P(2) = 1 + 4 + 12 = 17
         let z = FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(2));
-        let (proof, value) = Kzg::open(&params, &poly, &z);
+        let (_proof, value) = Kzg::open(&params, &poly, &z);
 
         // Check evaluation
-        assert_eq!(value.to_u1024().0[0], 17);
+        assert_eq!(value.to_u1024(), U1024::from_u64(17));
 
         // Verify (may not pass on toy curve due to field mismatch issues)
         // let valid = Kzg::verify(&params, &commitment, &z, &value, &proof);
         // Note: Commented out as BLS6_6 has base field ≠ scalar field issues
+    }
+
+    #[test]
+    #[should_panic(expected = "KZG params has empty powers_of_tau")]
+    fn test_kzg_commit_empty_params() {
+        let _g1_curve = get_g1_curve();
+        let g2_curve = get_g2_curve();
+        let r_order = U1024::from_u64(13);
+        let final_exp = U1024::from_u64(FINAL_EXPONENT);
+
+        // Create params with empty powers_of_tau
+        let params = KzgParams {
+            powers_of_tau: vec![],
+            g2: g2_curve.generator(),
+            tau_g2: g2_curve.generator(),
+            r_order,
+            final_exp,
+        };
+
+        let poly = Polynomial::new(vec![FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(
+            1,
+        ))]);
+
+        // Should panic
+        let _commitment = Kzg::commit(&params, &poly);
+    }
+
+    #[test]
+    fn test_kzg_verify_empty_params() {
+        let g1_curve = get_g1_curve();
+        let g2_curve = get_g2_curve();
+        let r_order = U1024::from_u64(13);
+        let final_exp = U1024::from_u64(FINAL_EXPONENT);
+
+        // Create params with empty powers_of_tau
+        let params = KzgParams {
+            powers_of_tau: vec![],
+            g2: g2_curve.generator(),
+            tau_g2: g2_curve.generator(),
+            r_order,
+            final_exp,
+        };
+
+        let commitment = g1_curve.generator();
+        let z = FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(2));
+        let value = FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(5));
+        let proof = g1_curve.generator();
+
+        // Should return false rather than panic
+        let result = Kzg::verify(&params, &commitment, &z, &value, &proof);
+        assert!(!result);
+    }
+
+    #[test]
+    #[should_panic(expected = "Polynomial degree")]
+    fn test_kzg_commit_polynomial_too_large() {
+        let g1_curve = get_g1_curve();
+        let g2_curve = get_g2_curve();
+        let tau = FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(5));
+        let r_order = U1024::from_u64(13);
+        let final_exp = U1024::from_u64(FINAL_EXPONENT);
+
+        // Setup with max_degree = 3 (supports degrees 0, 1, 2, 3)
+        let params =
+            Kzg::<Bls6_6BaseField>::setup(tau, 3, &g1_curve, &g2_curve, r_order, final_exp);
+
+        // Create polynomial with degree 4 (5 coefficients: x^0, x^1, x^2, x^3, x^4)
+        // This exceeds the SRS capacity
+        let poly = Polynomial::new(vec![
+            FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(1)),
+            FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(2)),
+            FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(3)),
+            FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(4)),
+            FieldElement::<Bls6_6BaseField>::new(U1024::from_u64(5)), // x^4 exceeds capacity
+        ]);
+
+        // Should panic with "Polynomial degree 4 exceeds SRS size 4 (max degree 3)"
+        let _commitment = Kzg::commit(&params, &poly);
     }
 }

@@ -258,6 +258,37 @@ impl<P: TwistedEdwardsConfig> Projective<P> {
     }
 }
 
+use crate::traits::ProjectivePoint;
+
+impl<P: TwistedEdwardsConfig> ProjectivePoint for Projective<P> {
+    type Field = FieldElement<P::BaseField>;
+
+    fn is_identity(&self) -> bool {
+        self.is_identity()
+    }
+
+    fn add(&self, rhs: &Self) -> Self {
+        self.add(rhs)
+    }
+
+    fn double(&self) -> Self {
+        self.double()
+    }
+
+    fn to_affine(&self) -> (Self::Field, Self::Field) {
+        let affine = self.to_affine();
+        (affine.x, affine.y)
+    }
+
+    fn mul(&self, scalar: &U1024) -> Self {
+        self.mul(scalar)
+    }
+
+    fn neg(&self) -> Self {
+        self.neg()
+    }
+}
+
 impl<P: TwistedEdwardsConfig> Neg for Projective<P> {
     type Output = Self;
 

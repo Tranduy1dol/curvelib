@@ -4,10 +4,7 @@
 
 use curvelib::{
     instances::bls6_6::{self, Bls6_6BaseField, FINAL_EXPONENT},
-    protocol::{
-        PolynomialCommitment,
-        commitment::kzg::{Kzg, KzgParams},
-    },
+    protocol::{PolynomialCommitment, commitment::kzg::Kzg},
     traits::{Curve, ProjectivePoint},
 };
 use mathlib::{FieldElement, Polynomial, U1024, fp};
@@ -92,7 +89,7 @@ fn test_kzg_open_trait() {
     let (_proof, value) = Kzg::open(&params, &poly, &z);
 
     println!("Evaluation at z=2: {:?}", value.to_u1024());
-    assert_eq!(value.to_u1024().0[0], 17);
+    assert_eq!(value.to_u1024(), U1024::from_u64(17));
 
     println!("✅ KZG Open passed!");
 }
@@ -125,10 +122,11 @@ fn test_kzg_full_flow_trait() {
     let (proof, value) = Kzg::open(&params, &poly, &z);
 
     println!("Committed and opened polynomial");
-    println!("Value at z=2: {:?}", value.to_u1024().0[0]);
+    println!("Value at z=2: {:?}", value.to_u1024());
 
     // Note: Verification may not work on toy curve
-    // let valid = Kzg::verify(&params, &commitment, &z, &value, &proof);
+    let valid = Kzg::verify(&params, &commitment, &z, &value, &proof);
+    assert!(valid, "Kzg verify failed");
 
     println!("✅ KZG Full Flow passed!");
 }

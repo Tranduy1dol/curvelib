@@ -123,17 +123,31 @@ impl<C: FieldConfig> Neg for TwistPoint<C> {
 }
 
 impl<C: FieldConfig> TwistPoint<C> {
-    /// Create a point from affine Fp2 coordinates.
+    /// Create a new point from affine Fp2 coordinates.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the coordinates do not lie on the curve.
+    /// For the identity point, use `TwistPoint::identity()` instead.
     pub fn new_affine(x: Fp2<C>, y: Fp2<C>, curve: SexticTwist<C>) -> Self {
-        if x.is_zero() && y.is_zero() {
-            curve.identity()
-        } else {
-            TwistPoint {
-                x,
-                y,
-                z: Fp2::one(),
-                curve,
-            }
+        // Validate that the point lies on the curve
+        assert!(curve.is_on_curve(&x, &y), "Point does not lie on the curve");
+
+        TwistPoint {
+            x,
+            y,
+            z: Fp2::one(),
+            curve,
+        }
+    }
+
+    /// Create the identity (point at infinity).
+    pub fn identity(curve: SexticTwist<C>) -> Self {
+        TwistPoint {
+            x: Fp2::one(),
+            y: Fp2::one(),
+            z: Fp2::zero(),
+            curve,
         }
     }
 
@@ -226,7 +240,10 @@ impl<C: FieldConfig> ProjectivePoint for TwistPoint<C> {
         if self.is_identity() {
             return (Fp2::zero(), Fp2::zero());
         }
-        let z_inv = self.z.inv().unwrap_or(Fp2::zero());
+        let z_inv = self
+            .z
+            .inv()
+            .expect("to_affine: z is zero for non-identity point");
         (self.x * z_inv, self.y * z_inv)
     }
 

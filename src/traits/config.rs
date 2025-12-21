@@ -29,6 +29,8 @@ use std::fmt::Debug;
 
 use mathlib::{BigInt, FieldConfig, FieldElement, U1024};
 
+use crate::traits::point::ProjectivePoint;
+
 /// Configuration trait for elliptic curves.
 ///
 /// This trait bundles together the associated types and static parameters
@@ -45,6 +47,12 @@ pub trait CurveConfig: Clone + Debug + Sized + Send + Sync + 'static {
 
     /// The scalar field configuration.
     type ScalarField: FieldConfig;
+
+    /// The projective point type for this curve.
+    type Projective: ProjectivePoint<Field = FieldElement<Self::BaseField>>;
+
+    /// Returns the generator point of the curve group.
+    fn generator() -> Self::Projective;
 
     /// The cofactor of the curve as little-endian u64 limbs.
     /// The cofactor h = #E(F_p) / r, where r is the prime subgroup order.

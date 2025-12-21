@@ -300,6 +300,37 @@ impl<P: ShortWeierstrassConfig> Projective<P> {
     }
 }
 
+use crate::traits::ProjectivePoint;
+
+impl<P: ShortWeierstrassConfig> ProjectivePoint for Projective<P> {
+    type Field = FieldElement<P::BaseField>;
+
+    fn is_identity(&self) -> bool {
+        self.is_identity()
+    }
+
+    fn add(&self, rhs: &Self) -> Self {
+        self.add(rhs)
+    }
+
+    fn double(&self) -> Self {
+        self.double()
+    }
+
+    fn to_affine(&self) -> (Self::Field, Self::Field) {
+        let affine = self.to_affine();
+        (affine.x, affine.y)
+    }
+
+    fn mul(&self, scalar: &U1024) -> Self {
+        self.mul(scalar)
+    }
+
+    fn neg(&self) -> Self {
+        self.neg()
+    }
+}
+
 impl<P: ShortWeierstrassConfig> Neg for Projective<P> {
     type Output = Self;
 
@@ -382,21 +413,36 @@ impl<C: FieldConfig> Neg for WeierstrassPoint<C> {
 }
 
 impl<C: FieldConfig> WeierstrassPoint<C> {
+    /// Create a new point from affine coordinates.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the coordinates do not lie on the curve.
+    /// For the identity point, use `WeierstrassPoint::identity()` instead.
     pub fn new_affine(x: FieldElement<C>, y: FieldElement<C>, curve: WeierstrassCurve<C>) -> Self {
-        if x.is_zero() && y.is_zero() {
-            WeierstrassPoint {
-                x: FieldElement::<C>::one(),
-                y: FieldElement::<C>::one(),
-                z: FieldElement::<C>::zero(),
-                curve,
-            }
-        } else {
-            WeierstrassPoint {
-                x,
-                y,
-                z: FieldElement::<C>::one(),
-                curve,
-            }
+        // Validate that the point lies on the curve
+        assert!(
+            curve.is_on_curve(&x, &y),
+            "Point ({:?}, {:?}) does not lie on the curve",
+            x.to_u1024(),
+            y.to_u1024()
+        );
+
+        WeierstrassPoint {
+            x,
+            y,
+            z: FieldElement::<C>::one(),
+            curve,
+        }
+    }
+
+    /// Create the identity (point at infinity).
+    pub fn identity(curve: WeierstrassCurve<C>) -> Self {
+        WeierstrassPoint {
+            x: FieldElement::<C>::one(),
+            y: FieldElement::<C>::one(),
+            z: FieldElement::<C>::zero(),
+            curve,
         }
     }
 
@@ -554,8 +600,7 @@ impl<C: FieldConfig> crate::traits::ProjectivePoint for WeierstrassPoint<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::instances::bls6_6::Bls6_6G1Config;
-    use crate::traits::ProjectivePoint as _;
+    use crate::instances::bls6_6::{Bls6_6BaseField, Bls6_6G1Config};
 
     #[test]
     fn test_identity() {
@@ -586,5 +631,37 @@ mod tests {
         let g = curve.generator();
         let (x, y) = g.to_affine();
         assert!(curve.is_on_curve(&x, &y));
+    }
+
+    #[test]
+    fn test_legacy_new_affine_validation() {
+        use crate::instances::bls6_6::get_g1_curve;
+        let curve = get_g1_curve();
+        let g = curve.generator();
+        let (x, y) = g.to_affine();
+
+        // Should succeed for valid point on curve
+        let _p = WeierstrassPoint::new_affine(x, y, curve.clone());
+    }
+
+    #[test]
+    #[should_panic(expected = "does not lie on the curve")]
+    fn test_legacy_new_affine_rejects_invalid_point() {
+        use crate::instances::bls6_6::get_g1_curve;
+        let curve = get_g1_curve();
+
+        // (0, 0) is not on the curve and should panic
+        let zero = FieldElement::<Bls6_6BaseField>::zero();
+        let _p = WeierstrassPoint::new_affine(zero, zero, curve);
+    }
+
+    #[test]
+    fn test_legacy_identity_constructor() {
+        use crate::instances::bls6_6::get_g1_curve;
+        let curve = get_g1_curve();
+
+        // Use explicit identity constructor
+        let id = WeierstrassPoint::identity(curve);
+        assert!(id.is_identity());
     }
 }

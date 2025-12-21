@@ -5,10 +5,7 @@
 //! of a `SigningEngine` module.
 
 use curvelib::{
-    instances::{
-        bls6_6::{Bls6_6G1Config, Bls6_6ScalarField},
-        tiny_jubjub,
-    },
+    instances::tiny_jubjub::{self, TinyJubjubConfig, TinyJubjubScalarField},
     protocol::{
         keys::{FromHex, KeyEngine, PrivateKey, ToHex},
         signing::{Signature, SigningEngine},
@@ -49,28 +46,28 @@ fn test_keypair_different_keys() {
 
 #[test]
 fn test_modern_key_engine() {
-    let engine = KeyEngine::<Bls6_6G1Config>::new();
-    let scalar = U1024::from_u64(5);
+    let engine = KeyEngine::<TinyJubjubConfig>::new();
+    let scalar = U1024::from_u64(3); // Scalar mod 5
     let keypair = engine.keypair_from_scalar(scalar);
 
-    assert_eq!(keypair.private_key().to_u1024(), U1024::from_u64(5));
+    assert_eq!(keypair.private_key().to_u1024(), U1024::from_u64(3));
     assert!(!keypair.public_key().is_identity());
 
     // Hex roundtrip
     let priv_hex = keypair.private_key().to_hex_string();
-    let recovered_priv = PrivateKey::<Bls6_6G1Config>::from_hex_string(&priv_hex).unwrap();
+    let recovered_priv = PrivateKey::<TinyJubjubConfig>::from_hex_string(&priv_hex).unwrap();
     assert_eq!(*keypair.private_key(), recovered_priv);
 
     // Using ToHex/FromHex traits
     let priv_hex_trait = keypair.private_key().to_hex(false);
-    let recovered_priv_trait = PrivateKey::<Bls6_6G1Config>::from_hex(&priv_hex_trait).unwrap();
+    let recovered_priv_trait = PrivateKey::<TinyJubjubConfig>::from_hex(&priv_hex_trait).unwrap();
     assert_eq!(*keypair.private_key(), recovered_priv_trait);
 }
 
 #[test]
 fn test_public_key_hex() {
-    let engine = KeyEngine::<Bls6_6G1Config>::new();
-    let keypair = engine.keypair_from_scalar(U1024::from_u64(5));
+    let engine = KeyEngine::<TinyJubjubConfig>::new();
+    let keypair = engine.keypair_from_scalar(U1024::from_u64(3));
     let pub_key = keypair.public_key();
 
     // Uncompressed hex
@@ -97,14 +94,14 @@ fn test_signature_hex_roundtrip() {
 
 #[test]
 fn test_ecdsa_sign_verify() {
-    let key_engine = KeyEngine::<Bls6_6G1Config>::new();
-    let signing_engine = SigningEngine::<Bls6_6G1Config>::new();
+    let key_engine = KeyEngine::<TinyJubjubConfig>::new();
+    let signing_engine = SigningEngine::<TinyJubjubConfig>::new();
 
-    let private_scalar = U1024::from_u64(5);
+    let private_scalar = U1024::from_u64(2); // In F_5
     let keypair = key_engine.keypair_from_scalar(private_scalar);
 
-    let message_hash = FieldElement::<Bls6_6ScalarField>::new(U1024::from_u64(7));
-    let nonce = FieldElement::<Bls6_6ScalarField>::new(U1024::from_u64(3));
+    let message_hash = FieldElement::<TinyJubjubScalarField>::new(U1024::from_u64(1));
+    let nonce = FieldElement::<TinyJubjubScalarField>::new(U1024::from_u64(2));
 
     // Sign
     let signature = signing_engine
@@ -112,9 +109,8 @@ fn test_ecdsa_sign_verify() {
         .expect("signing should succeed");
 
     // Verify
-    // Note: This might fail on BLS6_6 due to base/scalar field mismatch,
-    // but we want to test the API.
-    let _valid = signing_engine.verify(&signature, &message_hash, keypair.public_key());
+    let valid = signing_engine.verify(&signature, &message_hash, keypair.public_key());
+    assert!(valid, "Verification failed on Tiny Jubjub!");
 
     // Basic consistency
     assert_ne!(*signature.r(), U1024::zero());
@@ -123,11 +119,11 @@ fn test_ecdsa_sign_verify() {
 
 #[test]
 fn test_invalid_signatures() {
-    let key_engine = KeyEngine::<Bls6_6G1Config>::new();
-    let signing_engine = SigningEngine::<Bls6_6G1Config>::new();
+    let key_engine = KeyEngine::<TinyJubjubConfig>::new();
+    let signing_engine = SigningEngine::<TinyJubjubConfig>::new();
 
-    let keypair = key_engine.keypair_from_scalar(U1024::from_u64(5));
-    let message_hash = FieldElement::<Bls6_6ScalarField>::new(U1024::from_u64(7));
+    let keypair = key_engine.keypair_from_scalar(U1024::from_u64(2));
+    let message_hash = FieldElement::<TinyJubjubScalarField>::new(U1024::from_u64(1));
 
     // Signature with zero r
     let sig_zero_r = Signature::new(U1024::zero(), U1024::from_u64(123));

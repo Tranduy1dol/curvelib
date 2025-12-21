@@ -49,9 +49,14 @@ pub struct Bls6_6G1Config;
 impl CurveConfig for Bls6_6G1Config {
     type BaseField = Bls6_6BaseField;
     type ScalarField = Bls6_6ScalarField;
+    type Projective = crate::models::sw::Projective<Self>;
 
     /// Cofactor h = 1 (BLS6_6 G1 is prime order)
     const COFACTOR: &'static [u64] = &[1];
+
+    fn generator() -> Self::Projective {
+        crate::models::sw::Projective::<Self>::generator()
+    }
 }
 
 impl ShortWeierstrassConfig for Bls6_6G1Config {

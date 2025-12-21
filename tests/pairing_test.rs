@@ -31,20 +31,18 @@ fn test_bls6_6_bilinearity() {
     }
 
     // 3. Calculate e(P, Q)
-    let e1 = tate_pairing(&p, &q, r_val.clone(), final_exp.clone());
+    let e1 = tate_pairing(&p, &q, r_val, final_exp);
     println!("e(P, Q) = {:?}", e1);
 
     // 4. Calculate e(2P, Q)
     let p2 = p.double();
-    let e2 = tate_pairing(&p2, &q, r_val.clone(), final_exp.clone());
+    let e2 = tate_pairing(&p2, &q, r_val, final_exp);
     println!("e(2P, Q) = {:?}", e2);
 
-    // TODO: Bilinearity check currently fails due to pairing implementation details
-    // The Miller loop produces zero values - need to investigate field embedding
+    // Verify bilinearity: e(2P, Q) = e(P, Q)²
     let e1_squared = e1.square();
-    // assert_eq!(e2, e1_squared, "Bilinearity check failed!");
+    assert_eq!(e2, e1_squared, "Bilinearity check failed!");
     println!("e1² = {:?}", e1_squared);
-    println!("Note: Bilinearity check skipped - pairing implementation needs refinement");
 }
 
 #[test]

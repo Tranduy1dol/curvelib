@@ -44,9 +44,14 @@ pub struct TinyJubjubConfig;
 impl CurveConfig for TinyJubjubConfig {
     type BaseField = TinyJubjubBaseField;
     type ScalarField = TinyJubjubScalarField;
+    type Projective = crate::models::te::Projective<Self>;
 
     /// Cofactor h = 1 (prime order subgroup)
     const COFACTOR: &'static [u64] = &[1];
+
+    fn generator() -> Self::Projective {
+        crate::models::te::Projective::<Self>::generator()
+    }
 }
 
 impl TwistedEdwardsConfig for TinyJubjubConfig {

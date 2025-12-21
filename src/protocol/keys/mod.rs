@@ -11,17 +11,16 @@ pub use keypair::{KeyPair, PrivateKey, PublicKey};
 
 use mathlib::U1024;
 
-use crate::models::sw::Projective;
-use crate::traits::ShortWeierstrassConfig;
+use crate::traits::{CurveConfig, ProjectivePoint};
 
 /// Key engine for generating and managing key pairs.
 ///
-/// Generic over `P: ShortWeierstrassConfig` which defines the curve.
-pub struct KeyEngine<P: ShortWeierstrassConfig> {
-    _marker: std::marker::PhantomData<P>,
+/// Generic over `C: CurveConfig` which defines the curve.
+pub struct KeyEngine<C: CurveConfig> {
+    _marker: std::marker::PhantomData<C>,
 }
 
-impl<P: ShortWeierstrassConfig> KeyEngine<P> {
+impl<C: CurveConfig> KeyEngine<C> {
     /// Create a new key engine.
     pub fn new() -> Self {
         Self {
@@ -38,9 +37,9 @@ impl<P: ShortWeierstrassConfig> KeyEngine<P> {
     /// # Returns
     ///
     /// A `KeyPair` containing the private and public keys.
-    pub fn keypair_from_scalar(&self, scalar: U1024) -> KeyPair<P> {
-        let private_key = PrivateKey::<P>::new(scalar);
-        let generator = Projective::<P>::generator();
+    pub fn keypair_from_scalar(&self, scalar: U1024) -> KeyPair<C> {
+        let private_key = PrivateKey::<C>::new(scalar);
+        let generator = C::generator();
         // Use the reduced scalar for multiplication
         let reduced_scalar = private_key.to_u1024();
         let public_point = generator.mul(&reduced_scalar);
@@ -50,17 +49,17 @@ impl<P: ShortWeierstrassConfig> KeyEngine<P> {
     }
 
     /// Parse a private key from hex string.
-    pub fn private_from_hex(&self, hex: &str) -> Result<PrivateKey<P>, HexError> {
-        PrivateKey::<P>::from_hex(hex)
+    pub fn private_from_hex(&self, hex: &str) -> Result<PrivateKey<C>, HexError> {
+        PrivateKey::<C>::from_hex(hex)
     }
 
     /// Encode a public key to hex string.
-    pub fn public_to_hex(&self, public_key: &PublicKey<P>, compressed: bool) -> String {
+    pub fn public_to_hex(&self, public_key: &PublicKey<C>, compressed: bool) -> String {
         public_key.to_hex(compressed)
     }
 }
 
-impl<P: ShortWeierstrassConfig> Default for KeyEngine<P> {
+impl<C: CurveConfig> Default for KeyEngine<C> {
     fn default() -> Self {
         Self::new()
     }
@@ -90,6 +89,6 @@ mod tests {
         let keypair = engine.keypair_from_scalar(large_scalar);
 
         // Should be reduced: 20 mod 13 = 7
-        assert_eq!(keypair.private_key().to_u1024().0[0], 20 % 13);
+        assert_eq!(keypair.private_key().to_u1024(), U1024::from_u64(20 % 13));
     }
 }

@@ -37,10 +37,26 @@ impl Signature {
         format_u1024_hex(&self.s)
     }
 
-    /// Parse from hex strings.
+    /// Parse from hex strings. Returns None if parsing fails or strings are empty.
     pub fn from_hex(r_hex: &str, s_hex: &str) -> Option<Self> {
-        let r = U1024::from_hex(r_hex.strip_prefix("0x").unwrap_or(r_hex));
-        let s = U1024::from_hex(s_hex.strip_prefix("0x").unwrap_or(s_hex));
+        let r_hex = r_hex.strip_prefix("0x").unwrap_or(r_hex);
+        let r_hex = r_hex.strip_prefix("0X").unwrap_or(r_hex);
+        let s_hex = s_hex.strip_prefix("0x").unwrap_or(s_hex);
+        let s_hex = s_hex.strip_prefix("0X").unwrap_or(s_hex);
+
+        // Basic validation: must be non-empty and only contain hex digits
+        if r_hex.is_empty() || s_hex.is_empty() {
+            return None;
+        }
+
+        for c in r_hex.chars().chain(s_hex.chars()) {
+            if !c.is_ascii_hexdigit() {
+                return None;
+            }
+        }
+
+        let r = U1024::from_hex(r_hex);
+        let s = U1024::from_hex(s_hex);
         Some(Signature::new(r, s))
     }
 }
@@ -89,5 +105,16 @@ mod tests {
 
         assert_eq!(*sig.r(), r);
         assert_eq!(*sig.s(), s);
+    }
+
+    #[test]
+    fn test_signature_invalid_hex() {
+        // Empty strings
+        assert!(Signature::from_hex("", "0x123").is_none());
+        assert!(Signature::from_hex("0x123", "").is_none());
+
+        // Invalid characters
+        assert!(Signature::from_hex("0xGHI", "0x123").is_none());
+        assert!(Signature::from_hex("0x123", "0xGHI").is_none());
     }
 }

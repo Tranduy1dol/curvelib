@@ -69,27 +69,35 @@ fn evaluate_line<C: FieldConfig>(t: &G1Affine<C>, p: &G1Affine<C>, q: &G2Project
     let zero_fp2 = Fp2::<C>::zero();
 
     let lambda_opt = calculate_slope(t, p);
+    let xi = Fp2::u();
 
-    let res_fp2 = match lambda_opt {
+    match lambda_opt {
         Some(lambda) => {
-            // Non-vertical: (yq - yt) - λ(xq - xt)
+            // Sextic twist map: ψ(xq, yq) = (xq * v², yq * v³) where v³ = ξ
+            // Line evaluation: L(X, Y) = (Y - yt) - λ(X - xt)
+            // L(ψ(xq, yq)) = (yq * v³ - yt) - λ(xq * v² - xt)
+            //              = (yq * ξ - yt + λ*xt) - λ*xq * v²
+
             let yt_fp2 = Fp2::new(yt, zero_fp);
             let xt_fp2 = Fp2::new(xt, zero_fp);
             let lambda_fp2 = Fp2::new(lambda, zero_fp);
 
-            let term1 = yq - yt_fp2;
-            let term2 = lambda_fp2 * (xq - xt_fp2);
-            term1 - term2
+            let c0 = (yq * xi) - yt_fp2 + (lambda_fp2 * xt_fp2);
+            let c1 = zero_fp2;
+            let c2 = -(lambda_fp2 * xq);
+
+            Fp6::new(c0, c1, c2)
         }
         None => {
-            // Vertical: xq - xt
+            // Vertical line: X - xt = xq * v² - xt
             let xt_fp2 = Fp2::new(xt, zero_fp);
-            xq - xt_fp2
-        }
-    };
+            let c0 = -xt_fp2;
+            let c1 = zero_fp2;
+            let c2 = xq;
 
-    // Embed Fp2 → Fp6 (in c0)
-    Fp6::new(res_fp2, zero_fp2, zero_fp2)
+            Fp6::new(c0, c1, c2)
+        }
+    }
 }
 
 /// Computes the Miller function value f_{r,P}(Q).
