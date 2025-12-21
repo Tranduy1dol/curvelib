@@ -4,7 +4,9 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-mathlib = { git = "https://github.com/Tranduy1dol/mathlib", version = "0.4.0"}
+hex = "0.4.3"
+mathlib = { git = "https://github.com/Tranduy1dol/mathlib", version = "1.1.0"}
 rand = "0.9.2"
+
 [features]
 test = []
