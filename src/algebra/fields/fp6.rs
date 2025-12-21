@@ -1,51 +1,111 @@
-use std::ops::Mul;
+//! Sextic extension field Fp6 = Fp2\[v\] / (v³ - ξ).
+//!
+//! This module provides the sextic extension field built as a cubic extension
+//! over Fp2, where `v`³ = ξ = u (the imaginary unit in Fp2).
 
-use mathlib::field::montgomery::MontgomeryParams;
+use std::ops::{Add, Mul, Neg, Sub};
 
-use crate::algebra::fields::{Fp, Fp2};
-use crate::def_fp6;
+use mathlib::FieldConfig;
+
+use crate::algebra::fields::Fp2;
 use crate::traits::Field;
 
-def_fp6!(Fp6, Fp2<'a>);
+/// Sextic extension field element: c0 + c1·`v` + c2·`v`² where `v`³ = ξ.
+///
+/// `Fp6<C>` represents elements of the sextic extension field over the base
+/// prime field defined by `C: FieldConfig`. The extension is constructed as
+/// Fp2\[v\]/(v³ - ξ) where ξ = u is the imaginary unit in Fp2.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Fp6<C: FieldConfig> {
+    /// Coefficient of 1
+    pub c0: Fp2<C>,
+    /// Coefficient of v
+    pub c1: Fp2<C>,
+    /// Coefficient of v²
+    pub c2: Fp2<C>,
+}
 
-// Implement Add, Sub (Vector addition)
-// Add, Sub, Neg implemented by macro
+impl<C: FieldConfig> Fp6<C> {
+    /// Create a new Fp6 element from three Fp2 coefficients.
+    pub fn new(c0: Fp2<C>, c1: Fp2<C>, c2: Fp2<C>) -> Self {
+        Self { c0, c1, c2 }
+    }
 
-impl<'a> Mul for Fp6<'a> {
+    /// Returns the additive identity (zero).
+    pub fn zero() -> Self {
+        Self {
+            c0: Fp2::zero(),
+            c1: Fp2::zero(),
+            c2: Fp2::zero(),
+        }
+    }
+
+    /// Returns the multiplicative identity (one).
+    pub fn one() -> Self {
+        Self {
+            c0: Fp2::one(),
+            c1: Fp2::zero(),
+            c2: Fp2::zero(),
+        }
+    }
+
+    /// Returns true if this element is zero.
+    pub fn is_zero(&self) -> bool {
+        self.c0.is_zero() && self.c1.is_zero() && self.c2.is_zero()
+    }
+
+    /// Computes the square of this element.
+    pub fn square(&self) -> Self {
+        *self * *self
+    }
+
+    /// Computes 2 * self.
+    pub fn double(&self) -> Self {
+        *self + *self
+    }
+}
+
+impl<C: FieldConfig> Add for Fp6<C> {
     type Output = Self;
+    fn add(self, rhs: Self) -> Self {
+        Self {
+            c0: self.c0 + rhs.c0,
+            c1: self.c1 + rhs.c1,
+            c2: self.c2 + rhs.c2,
+        }
+    }
+}
+
+impl<C: FieldConfig> Sub for Fp6<C> {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self {
+            c0: self.c0 - rhs.c0,
+            c1: self.c1 - rhs.c1,
+            c2: self.c2 - rhs.c2,
+        }
+    }
+}
+
+impl<C: FieldConfig> Neg for Fp6<C> {
+    type Output = Self;
+    fn neg(self) -> Self {
+        Self {
+            c0: -self.c0,
+            c1: -self.c1,
+            c2: -self.c2,
+        }
+    }
+}
+
+impl<C: FieldConfig> Mul for Fp6<C> {
+    type Output = Self;
+
     /// Multiply two Fp6 field elements.
     ///
-    /// The product is computed in the cubic extension Fp6 = Fp2[v]/(v^3 - ξ) using the
-    /// relation v^3 = ξ, v^4 = ξ v, v^5 = ξ v^2. This implementation uses the
-    /// cubic non-residue ξ = (0, 1) in Fp2 (i.e., Fp2::new(0, 1)), which is hard-coded
-    /// rather than generic over an arbitrary ξ.
-    ///
-    /// # Returns
-    ///
-    /// `Self` representing the product of the two Fp6 elements.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp6;
-    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
-    /// use curvelib::traits::Field;
-    ///
-    /// let params = get_tiny_params();
-    /// let a = Fp6::one(params);
-    /// let b = Fp6::one(params);
-    /// let product = a * b;
-    /// assert_eq!(product, Fp6::one(params));
-    /// ```
+    /// The product is computed in the cubic extension Fp6 = Fp2\[v\]/(v³ - ξ)
+    /// where `v`³ = ξ = u (the imaginary unit in Fp2).
     fn mul(self, rhs: Self) -> Self {
-        // Cubic extension field multiplication: (a + bv + cv²)(d + ev + fv²)
-        // Using Karatsuba-like optimization for 6 -> 5 multiplications
-        // Result = (ad) + (ae+bd)v + (af+be+cd)v² + (bf+ce)v³ + (cf)v⁴
-        // With v³ = ξ where ξ = (0,1) in Fp2, we get: v³ = ξ, v⁴ = ξv, v⁵ = ξv²
-
-        // This implementation uses ξ = (0,1) (i.e., Fp2::new(0, 1)).
-        // Note: ξ is hard-coded here rather than being generic/parameterized.
-
         let a = self.c0;
         let b = self.c1;
         let c = self.c2;
@@ -53,15 +113,8 @@ impl<'a> Mul for Fp6<'a> {
         let e = rhs.c1;
         let f = rhs.c2;
 
-        // Schoolbook multiplication approach
-        // (a + bv + cv²)(d + ev + fv²) = ad + (ae+bd)v + (af+be+cd)v² + (bf+ce)v³ + (cf)v⁴
-        // With v³ = ξ = (0,1) in Fp2: terms with v³, v⁴, v⁵ are reduced modulo v³ - ξ
-
-        let params = self.c0.c0.params;
-        let zero = Fp::zero(params);
-        let one = Fp::one(params);
-        // xi = u = 0 + 1u
-        let xi = Fp2::new(zero, one);
+        // ξ = u = Fp2(0, 1)
+        let xi = Fp2::u();
 
         let ad = a * d;
         let ae = a * e;
@@ -81,180 +134,38 @@ impl<'a> Mul for Fp6<'a> {
     }
 }
 
-impl<'a> Field<'a> for Fp6<'a> {
-    /// Constructs the additive identity element of Fp6 using the given Montgomery parameters.
-    ///
-    /// All three underlying Fp2 components (c0, c1, c2) are set to zero.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp6;
-    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
-    /// use curvelib::traits::Field;
-    ///
-    /// let params = get_tiny_params();
-    /// let z = Fp6::zero(params);
-    /// assert!(z.is_zero());
-    /// ```
-    fn zero(params: &'a MontgomeryParams) -> Self {
-        let z = Fp2::zero(params);
-        Self {
-            c0: z,
-            c1: z,
-            c2: z,
-        }
+/// Implement Field trait for Fp6
+impl<C: FieldConfig> Field for Fp6<C> {
+    fn zero() -> Self {
+        Fp6::zero()
     }
 
-    /// Checks whether the element is the additive zero.
-    ///
-    /// # Returns
-    /// `true` if all three Fp2 components (`c0`, `c1`, and `c2`) are zero, `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp6;
-    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
-    /// use curvelib::traits::Field;
-    ///
-    /// let params = get_tiny_params();
-    /// let z = Fp6::zero(params);
-    /// assert!(z.is_zero());
-    ///
-    /// let one = Fp6::one(params);
-    /// assert!(!one.is_zero());
-    /// ```
     fn is_zero(&self) -> bool {
-        self.c0.is_zero() && self.c1.is_zero() && self.c2.is_zero()
+        Fp6::is_zero(self)
     }
 
-    /// Constructs the multiplicative identity element of Fp6.
-    ///
-    /// The returned element has c0 = Fp2::one(params) and c1 = c2 = Fp2::zero(params).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::{Fp2, Fp6};
-    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
-    /// use curvelib::traits::Field;
-    ///
-    /// let params = get_tiny_params();
-    /// let one = Fp6::one(params);
-    /// assert_eq!(one.c0, Fp2::one(params));
-    /// assert_eq!(one.c1, Fp2::zero(params));
-    /// assert_eq!(one.c2, Fp2::zero(params));
-    /// ```
-    fn one(params: &'a MontgomeryParams) -> Self {
-        let z = Fp2::zero(params);
-        let o = Fp2::one(params);
-        Self {
-            c0: o,
-            c1: z,
-            c2: z,
-        }
+    fn one() -> Self {
+        Fp6::one()
     }
 
-    /// Attempts to compute the multiplicative inverse of this Fp6 element.
-    ///
-    /// The inversion operation is not implemented in this type, and this method always returns `None`.
-    /// Currently, this function is too complex to implement efficiently, so it is not implemented.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp6;
-    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
-    /// use curvelib::traits::Field;
-    ///
-    /// let params = get_tiny_params();
-    /// let a = Fp6::one(params);
-    /// assert_eq!(a.inv(), None);
-    /// ```
     fn inv(&self) -> Option<Self> {
+        // Fp6 inversion is complex; not implemented yet
         None
     }
 
-    /// Compute the sum of the element with itself.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp6;
-    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
-    /// use curvelib::traits::Field;
-    ///
-    /// let params = get_tiny_params();
-    /// let a = Fp6::zero(params);
-    /// let doubled = a.double();
-    /// assert!(doubled.is_zero());
-    /// ```
     fn double(&self) -> Self {
-        *self + *self
+        Fp6::double(self)
     }
 
-    /// Multiplies two Fp6 elements and returns their product.
-    ///
-    /// # Returns
-    ///
-    /// The product of `self` and `rhs` as an `Fp6`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp6;
-    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
-    /// use curvelib::traits::Field;
-    ///
-    /// let params = get_tiny_params();
-    /// let a = Fp6::one(params);
-    /// let b = Fp6::one(params);
-    /// let c = a.mul(&b);
-    /// assert_eq!(c, Fp6::one(params));
-    /// ```
     fn mul(&self, rhs: &Self) -> Self {
         *self * *rhs
     }
 
-    /// Adds two Fp6 elements and returns their sum.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp6;
-    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
-    /// use curvelib::traits::Field;
-    ///
-    /// let params = get_tiny_params();
-    /// let a = Fp6::zero(params);
-    /// let b = Fp6::one(params);
-    /// let c = a.add(&b);
-    /// assert_eq!(c, b);
-    /// ```
     fn add(&self, rhs: &Self) -> Self {
         *self + *rhs
     }
 
-    /// Squares the field element.
-    ///
-    /// # Returns
-    ///
-    /// The product of the element with itself.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp6;
-    /// use curvelib::instances::tiny_jubjub::get_tiny_params;
-    /// use curvelib::traits::Field;
-    ///
-    /// let params = get_tiny_params();
-    /// let x = Fp6::one(params);
-    /// let y = x.square();
-    /// assert_eq!(y, x * x);
-    /// ```
     fn square(&self) -> Self {
-        *self * *self
+        Fp6::square(self)
     }
 }

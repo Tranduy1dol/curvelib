@@ -1,41 +1,29 @@
-use mathlib::U1024;
+//! Final exponentiation for pairing computation.
+//!
+//! This module provides the final exponentiation step of the Tate pairing.
 
-use crate::{algebra::fields::Fp6, traits::Field};
+use mathlib::{FieldConfig, U1024};
 
-/// Compute exponentiation of an Fp6 element by an integer exponent using square-and-multiply.
+use crate::algebra::fields::Fp6;
+
+/// Compute exponentiation of an Fp6 element by an integer exponent.
+///
+/// Uses square-and-multiply algorithm.
+///
+/// # Type Parameters
+///
+/// * `C` - The base field configuration
 ///
 /// # Parameters
-/// - `f`: base element in Fp6.
-/// - `exponent`: exponent as a `U1024` integer.
+///
+/// * `f` - Base element in Fp6
+/// * `exponent` - Exponent as a `U1024` integer
 ///
 /// # Returns
+///
 /// The value `f` raised to `exponent` in the Fp6 field.
-///
-/// # Examples
-///
-/// ```rust
-/// use curvelib::algebra::fields::Fp6;
-/// use curvelib::instances::bls6_6::get_params;
-/// use curvelib::protocol::pairing::final_exp::final_exponentiation;
-/// use curvelib::traits::Field;
-///
-/// let params = get_params();
-///
-/// // pick a simple, concrete base element
-/// let f = Fp6::one(params);
-/// let exp = mathlib::u1024!(3);
-///
-/// let r = final_exponentiation(&f, &exp);
-/// assert_eq!(r, f * f * f);
-/// ```
-pub fn final_exponentiation<'a>(f: &Fp6<'a>, exponent: &U1024) -> Fp6<'a> {
-    // Perform f ^ exponent using Square-and-Multiply
-    // Note: f is in Fp6.
-
-    let params = f.c0.c0.params;
-    // xi generation removed as it's not used in standard mul
-
-    let mut res = Fp6::one(params);
+pub fn final_exponentiation<C: FieldConfig>(f: &Fp6<C>, exponent: &U1024) -> Fp6<C> {
+    let mut res = Fp6::<C>::one();
     let mut base = *f;
 
     let num_bits = exponent.bits();
@@ -48,4 +36,19 @@ pub fn final_exponentiation<'a>(f: &Fp6<'a>, exponent: &U1024) -> Fp6<'a> {
     }
 
     res
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instances::bls6_6::Bls6_6BaseField;
+    use mathlib::u1024;
+
+    #[test]
+    fn test_final_exp_one() {
+        let one = Fp6::<Bls6_6BaseField>::one();
+        let exp = u1024!(5);
+        let result = final_exponentiation(&one, &exp);
+        assert_eq!(result, one);
+    }
 }

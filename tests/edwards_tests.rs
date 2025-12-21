@@ -1,27 +1,30 @@
+//! Tests for Edwards curve operations.
+
 use curvelib::{
-    algebra::fields::Fp,
-    instances::tiny_jubjub,
-    models::{TePoint, WeierstrassCurve},
+    instances::bls6_6::Bls6_6BaseField,
+    instances::tiny_jubjub::{self, TinyJubjubBaseField},
+    models::{EdwardsPoint, WeierstrassCurve},
     traits::{Curve, ProjectivePoint},
 };
-use mathlib::{BigInt, U1024, field::montgomery::MontgomeryParams};
+use mathlib::{FieldElement, fp};
 
 #[test]
 fn test_tiny_jubjub_addition() {
     let curve = tiny_jubjub::get_curve();
-    let params = curve.params;
 
-    let p1 = TePoint::new_affine(
-        Fp::new(U1024::from_u64(0), params),
-        Fp::new(U1024::from_u64(1), params),
-        &curve,
+    // Identity point: (0, 1)
+    let p1 = EdwardsPoint::new_affine(
+        FieldElement::<TinyJubjubBaseField>::zero(),
+        FieldElement::<TinyJubjubBaseField>::one(),
+        curve.clone(),
     );
     assert!(p1.is_identity());
 
-    let p2 = TePoint::new_affine(
-        Fp::new(U1024::from_u64(1), params),
-        Fp::new(U1024::from_u64(2), params),
-        &curve,
+    // Another point on the curve
+    let p2 = EdwardsPoint::new_affine(
+        fp!(1u64, TinyJubjubBaseField),
+        fp!(2u64, TinyJubjubBaseField),
+        curve.clone(),
     );
 
     let sum1 = p1.add(&p2);
@@ -40,53 +43,38 @@ fn test_tiny_jubjub_addition() {
     println!("2 * (1,2) = ({:?}, {:?})", x.to_u1024(), y.to_u1024());
 }
 
-/// Checks that doubling the identity point on a Weierstrass curve yields the identity.
-///
-/// # Examples
-///
-/// ```
-/// use mathlib::{U1024, Fp, field::montgomery::MontgomeryParams};
-/// use short_weierstrass::WeierstrassCurve;
-///
-/// let mut p_val = U1024::zero();
-/// p_val.0[0] = 43;
-/// let params = MontgomeryParams::new(p_val, U1024::zero());
-///
-/// let a = Fp::new(U1024::from_u64(23), &params);
-/// let b = Fp::new(U1024::from_u64(42), &params);
-/// let curve = WeierstrassCurve::new(
-///     a,
-///     b,
-///     &params,
-///     &params,
-///     Fp::new(U1024::from_u64(1), &params),
-///     Fp::new(U1024::from_u64(1), &params),
-/// );
-///
-/// let g = curve.identity();
-/// let g2 = g.double();
-///
-/// assert!(g2.is_identity());
-/// ```
 #[test]
 fn test_tiny_curve_operations() {
-    let mut p_val = U1024::zero();
-    p_val.0[0] = 43;
-    let params = MontgomeryParams::new(p_val, U1024::zero());
+    // Use BLS6_6 for Weierstrass curve test
+    let a = fp!(23u64, Bls6_6BaseField);
+    let b = fp!(42u64, Bls6_6BaseField);
+    let gx = fp!(1u64, Bls6_6BaseField);
+    let gy = fp!(1u64, Bls6_6BaseField);
 
-    let a = Fp::new(U1024::from_u64(23), &params);
-    let b = Fp::new(U1024::from_u64(42), &params);
-    let curve = WeierstrassCurve::new(
-        a,
-        b,
-        &params,
-        &params,
-        Fp::new(U1024::from_u64(1), &params),
-        Fp::new(U1024::from_u64(1), &params),
-    );
+    let curve = WeierstrassCurve::<Bls6_6BaseField>::new(a, b, gx, gy);
 
     let g = curve.identity();
     let g2 = g.double();
 
     assert!(g2.is_identity(), "Double infinity must be infinity");
+}
+
+#[test]
+fn test_edwards_generator_on_curve() {
+    let curve = tiny_jubjub::get_curve();
+    let g = curve.generator();
+    let (x, y) = g.to_affine();
+    assert!(curve.is_on_curve(&x, &y), "Generator must be on curve");
+}
+
+#[test]
+fn test_edwards_identity() {
+    let curve = tiny_jubjub::get_curve();
+    let id = curve.identity();
+    assert!(id.is_identity());
+
+    // Identity has coords (0, 1)
+    let (x, y) = id.to_affine();
+    assert!(x.is_zero());
+    assert_eq!(y, FieldElement::<TinyJubjubBaseField>::one());
 }

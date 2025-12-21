@@ -1,339 +1,193 @@
-use mathlib::{MontgomeryParams, U1024, fp, u1024};
+//! Twisted Edwards curve implementation: ax² + y² = 1 + dx²y²
+//!
+//! This module provides projective and affine point types for
+//! working with elliptic curves in Twisted Edwards form.
+//!
+//! # Design
+//!
+//! Following the arkworks pattern, curve parameters are defined at the type level
+//! via `TwistedEdwardsConfig`. Points are generic over the config type, not
+//! over runtime curve instances.
 
-use crate::algebra::fields::Fp;
-use crate::traits::{Curve, Field, ProjectivePoint};
+use std::marker::PhantomData;
+use std::ops::Neg;
 
-impl<'a> Curve<'a> for EdwardsCurve<'a> {
-    type Point = TePoint<'a>;
+use mathlib::{FieldConfig, FieldElement, U1024};
 
-    /// Returns the identity point on this Edwards curve in extended/projective coordinates.
-    ///
-    /// The identity has coordinates x = 0, y = 1, z = 1, t = 0 and is bound to this curve.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp;
-    /// use curvelib::models::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let a = fp!(u1024!(1), &params);
-    /// let d = fp!(u1024!(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
-    ///
-    /// let id = curve.identity();
-    /// let (x, y) = id.to_affine();
-    /// assert_eq!(x, Fp::zero(&params));
-    /// assert_eq!(y, Fp::one(&params));
-    /// ```
-    fn identity(&self) -> Self::Point {
-        let curve = self.clone();
-        let zero = Fp::zero(self.params);
-        let one = Fp::one(self.params);
-        TePoint {
-            x: zero,
-            y: one,
-            z: one,
-            t: zero,
-            curve,
+use crate::traits::{Curve, Field, TwistedEdwardsConfig};
+
+/// A point on a Twisted Edwards curve in affine coordinates (x, y).
+///
+/// Generic over `P: TwistedEdwardsConfig` which defines the curve parameters.
+#[derive(Clone, Copy, Debug)]
+pub struct Affine<P: TwistedEdwardsConfig> {
+    /// X coordinate
+    pub x: FieldElement<P::BaseField>,
+    /// Y coordinate
+    pub y: FieldElement<P::BaseField>,
+    _marker: PhantomData<P>,
+}
+
+impl<P: TwistedEdwardsConfig> PartialEq for Affine<P> {
+    fn eq(&self, other: &Self) -> bool {
+        self.x == other.x && self.y == other.y
+    }
+}
+
+impl<P: TwistedEdwardsConfig> Eq for Affine<P> {}
+
+impl<P: TwistedEdwardsConfig> Affine<P> {
+    /// Create the identity point (0, 1) on Edwards curves.
+    pub fn identity() -> Self {
+        Self {
+            x: FieldElement::<P::BaseField>::zero(),
+            y: FieldElement::<P::BaseField>::one(),
+            _marker: PhantomData,
         }
     }
 
-    /// Determines whether an affine point (x, y) satisfies the Edwards curve equation.
-    ///
-    /// Returns `true` if the coordinates satisfy a*x^2 + y^2 = 1 + d*x^2*y^2, `false` otherwise.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp;
-    /// use curvelib::models::EdwardsCurve;
-    /// use curvelib::traits::Curve;
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let p = u1024!(17);
-    /// let params = mont!(p, u1024!(0));
-    /// let a = fp!(u1024!(1), &params);
-    /// let d = fp!(u1024!(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
-    ///
-    /// let x = Fp::zero(&params);
-    /// let y = Fp::one(&params);
-    /// assert!(curve.is_on_curve(&x, &y));
-    /// ```
-    fn is_on_curve(
-        &self,
-        x: &<Self::Point as ProjectivePoint<'a>>::Field,
-        y: &<Self::Point as ProjectivePoint<'a>>::Field,
-    ) -> bool {
-        let x2 = *x * *x;
-        let y2 = *y * *y;
-        let lhs = (self.a * x2) + y2;
+    /// Create the generator point from the curve configuration.
+    pub fn generator() -> Self {
+        Self {
+            x: P::generator_x(),
+            y: P::generator_y(),
+            _marker: PhantomData,
+        }
+    }
 
-        let one = Fp::one(self.params);
-        let rhs = one + (self.d * x2 * y2);
+    /// Create a new affine point from coordinates.
+    pub fn new(x: FieldElement<P::BaseField>, y: FieldElement<P::BaseField>) -> Self {
+        Self {
+            x,
+            y,
+            _marker: PhantomData,
+        }
+    }
 
+    /// Check if this is the identity point.
+    pub fn is_identity(&self) -> bool {
+        self.x.is_zero() && self.y == FieldElement::<P::BaseField>::one()
+    }
+
+    /// Check if this point lies on the curve.
+    pub fn is_on_curve(&self) -> bool {
+        // ax² + y² = 1 + dx²y²
+        let x2 = self.x * self.x;
+        let y2 = self.y * self.y;
+        let lhs = P::mul_by_a(x2) + y2;
+        let rhs = FieldElement::<P::BaseField>::one() + P::coeff_d() * x2 * y2;
         lhs == rhs
     }
 
-    /// Returns a reference to the curve's scalar-field Montgomery parameters.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp;
-    /// use curvelib::models::EdwardsCurve;
-    /// use curvelib::traits::Curve;
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let curve = EdwardsCurve::new(
-    ///     fp!(u1024!(1), &params),
-    ///     fp!(u1024!(2), &params),
-    ///     &params,
-    ///     &params,
-    ///     u1024!(0),
-    ///     u1024!(1),
-    /// );
-    /// let p1 = curve.scalar_params();
-    /// let p2 = curve.scalar_params();
-    /// assert!(std::ptr::eq(p1, p2));
-    /// ```
-    fn scalar_params(&self) -> &'a MontgomeryParams {
-        self.scalar_params
-    }
-
-    /// Constructs the curve's generator point in extended/projective coordinates.
-    ///
-    /// The returned point uses the curve's stored generator_x and generator_y as affine
-    /// coordinates, sets `z` to one, computes `t = x * y`, and clones the curve reference.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp;
-    /// use curvelib::models::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let a = fp!(u1024!(1), &params);
-    /// let d = fp!(u1024!(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
-    ///
-    /// let g = curve.generator();
-    /// let (gx, gy) = g.to_affine();
-    /// assert!(curve.is_on_curve(&gx, &gy));
-    /// ```
-    fn generator(&self) -> Self::Point {
-        let x = fp!(self.generator_x, self.params);
-        let y = fp!(self.generator_y, self.params);
-        let z = Fp::one(self.params);
-        let t = x * y;
-        TePoint {
-            x,
-            y,
-            z,
-            t,
-            curve: self.clone(),
+    /// Convert to extended projective coordinates.
+    pub fn into_projective(self) -> Projective<P> {
+        Projective {
+            x: self.x,
+            y: self.y,
+            z: FieldElement::<P::BaseField>::one(),
+            t: self.x * self.y,
+            _marker: PhantomData,
         }
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct EdwardsCurve<'a> {
-    pub a: Fp<'a>,
-    pub d: Fp<'a>,
-    pub params: &'a MontgomeryParams,
-    pub scalar_params: &'a MontgomeryParams,
-    pub generator_x: U1024,
-    pub generator_y: U1024,
-}
+impl<P: TwistedEdwardsConfig> Neg for Affine<P> {
+    type Output = Self;
 
-impl<'a> EdwardsCurve<'a> {
-    /// Creates a new EdwardsCurve with the specified curve parameters and generator.
-    ///
-    /// - `a` and `d` are the Edwards curve parameters in the base field.
-    /// - `params` are the Montgomery parameters for the base field.
-    /// - `scalar_params` are the Montgomery parameters for the scalar field.
-    /// - `generator_x` and `generator_y` are the affine coordinates of the curve generator as `U1024`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp;
-    /// use curvelib::models::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let scalar_params = &params;
-    ///
-    /// let a = Fp::one(&params);
-    /// let d = fp!(u1024!(5), &params);
-    /// let gx = u1024!(0);
-    /// let gy = u1024!(1);
-    ///
-    /// let curve = EdwardsCurve::new(a, d, &params, scalar_params, gx, gy);
-    /// assert_eq!(curve.generator_x, gx);
-    /// assert_eq!(curve.generator_y, gy);
-    /// ```
-    pub fn new(
-        a: Fp<'a>,
-        d: Fp<'a>,
-        params: &'a MontgomeryParams,
-        scalar_params: &'a MontgomeryParams,
-        generator_x: U1024,
-        generator_y: U1024,
-    ) -> Self {
+    fn neg(self) -> Self::Output {
         Self {
-            a,
-            d,
-            params,
-            scalar_params,
-            generator_x,
-            generator_y,
+            x: -self.x,
+            y: self.y,
+            _marker: PhantomData,
         }
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct TePoint<'a> {
-    pub x: Fp<'a>,
-    pub y: Fp<'a>,
-    pub z: Fp<'a>,
-    pub t: Fp<'a>,
-    pub curve: EdwardsCurve<'a>,
+/// A point on a Twisted Edwards curve in extended projective coordinates (X : Y : Z : T).
+///
+/// The extended coordinate T = X * Y / Z satisfies the relation.
+/// Generic over `P: TwistedEdwardsConfig` which defines the curve parameters.
+#[derive(Clone, Copy, Debug)]
+pub struct Projective<P: TwistedEdwardsConfig> {
+    /// X coordinate
+    pub x: FieldElement<P::BaseField>,
+    /// Y coordinate
+    pub y: FieldElement<P::BaseField>,
+    /// Z coordinate
+    pub z: FieldElement<P::BaseField>,
+    /// Extended coordinate T = X * Y / Z
+    pub t: FieldElement<P::BaseField>,
+    _marker: PhantomData<P>,
 }
 
-impl<'a> PartialEq for TePoint<'a> {
+impl<P: TwistedEdwardsConfig> PartialEq for Projective<P> {
     fn eq(&self, other: &Self) -> bool {
-        if self.is_identity() {
-            return other.is_identity();
-        }
-        if other.is_identity() {
-            return self.is_identity();
-        }
-
-        let x1z2 = self.x * other.z;
-        let x2z1 = other.x * self.z;
-
-        let y1z2 = self.y * other.z;
-        let y2z1 = other.y * self.z;
-
-        x1z2 == x2z1 && y1z2 == y2z1
+        // Compare in projective coordinates
+        let lhs_x = self.x * other.z;
+        let rhs_x = other.x * self.z;
+        let lhs_y = self.y * other.z;
+        let rhs_y = other.y * self.z;
+        lhs_x == rhs_x && lhs_y == rhs_y
     }
 }
-impl<'a> Eq for TePoint<'a> {}
 
-impl<'a> TePoint<'a> {
-    /// Creates a projective/extended Edwards curve point from affine coordinates.
-    ///
-    /// The resulting point has `z` set to the field multiplicative identity and `t` set to `x * y`.
-    /// The provided curve reference is cloned and stored with the point.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp;
-    /// use curvelib::models::{EdwardsCurve, TePoint};
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let a = fp!(u1024!(1), &params);
-    /// let d = fp!(u1024!(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
-    ///
-    /// let x = Fp::zero(&params);
-    /// let y = Fp::one(&params);
-    /// let p = TePoint::new_affine(x, y, &curve);
-    /// let (xa, ya) = p.to_affine();
-    /// assert_eq!(xa, Fp::zero(&params));
-    /// assert_eq!(ya, Fp::one(&params));
-    /// ```
-    pub fn new_affine(x: Fp<'a>, y: Fp<'a>, curve: &'a EdwardsCurve<'a>) -> Self {
-        let z = Fp::one(curve.params);
-        let t = x * y;
+impl<P: TwistedEdwardsConfig> Eq for Projective<P> {}
+
+impl<P: TwistedEdwardsConfig> Projective<P> {
+    /// Create the identity point (0, 1, 1, 0) on Edwards curves.
+    pub fn identity() -> Self {
+        Self {
+            x: FieldElement::<P::BaseField>::zero(),
+            y: FieldElement::<P::BaseField>::one(),
+            z: FieldElement::<P::BaseField>::one(),
+            t: FieldElement::<P::BaseField>::zero(),
+            _marker: PhantomData,
+        }
+    }
+
+    /// Create the generator point from the curve configuration.
+    pub fn generator() -> Self {
+        let x = P::generator_x();
+        let y = P::generator_y();
         Self {
             x,
             y,
-            z,
-            t,
-            curve: curve.clone(),
+            z: FieldElement::<P::BaseField>::one(),
+            t: x * y,
+            _marker: PhantomData,
         }
     }
-}
 
-impl<'a> ProjectivePoint<'a> for TePoint<'a> {
-    type Field = Fp<'a>;
-
-    /// Determines whether the point is the identity element on its Edwards curve.
-    ///
-    /// The identity is encoded in extended/projective coordinates as `x == 0` and `y == z`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp;
-    /// use curvelib::models::{EdwardsCurve, TePoint};
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let a = fp!(u1024!(1), &params);
-    /// let d = fp!(u1024!(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
-    /// let id = TePoint::new_affine(Fp::zero(&params), Fp::one(&params), &curve);
-    /// assert!(id.is_identity());
-    /// ```
-    fn is_identity(&self) -> bool {
-        let zero = Fp::zero(self.curve.params);
-        self.x == zero && self.y == self.z
+    /// Check if this is the identity point.
+    pub fn is_identity(&self) -> bool {
+        self.x.is_zero() && self.y == self.z
     }
 
-    /// Adds two Edwards-curve points in projective/extended coordinates.
-    ///
-    /// The result is the curve point representing `self + rhs` using the curve's
-    /// parameters stored in the points.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use std::ops::Add;
-    /// use curvelib::models::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let a = fp!(u1024!(1), &params);
-    /// let d = fp!(u1024!(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
-    ///
-    /// let p = curve.identity();
-    /// let q = curve.identity();
-    /// let r = p.add(&q);
-    /// assert_eq!(r, q.add(&p));
-    /// ```
-    fn add(&self, rhs: &Self) -> Self {
+    /// Convert to affine coordinates.
+    pub fn to_affine(&self) -> Affine<P> {
+        if self.z.is_zero() {
+            return Affine::identity();
+        }
+        let z_inv = Field::inv(&self.z).unwrap();
+        Affine::new(self.x * z_inv, self.y * z_inv)
+    }
+
+    /// Helper to create small field constants.
+    fn from_u64(val: u64) -> FieldElement<P::BaseField> {
+        FieldElement::<P::BaseField>::new(U1024::from_u64(val))
+    }
+
+    /// Add two extended projective points.
+    pub fn add(&self, rhs: &Self) -> Self {
+        // Extended Edwards addition formula
         let a = self.x * rhs.x;
         let b = self.y * rhs.y;
-
-        let t1t2 = self.t * rhs.t;
-        let c = self.curve.d * t1t2;
-
+        let c = self.t * P::coeff_d() * rhs.t;
         let d = self.z * rhs.z;
-
-        let x1_plus_y1 = self.x + self.y;
-        let x2_plus_y2 = rhs.x + rhs.y;
-        let e = (x1_plus_y1 * x2_plus_y2) - a - b;
-
+        let e = (self.x + self.y) * (rhs.x + rhs.y) - a - b;
         let f = d - c;
         let g = d + c;
-
-        let h = b - (self.curve.a * a);
+        let h = b - P::mul_by_a(a);
 
         let x3 = e * f;
         let y3 = g * h;
@@ -345,39 +199,19 @@ impl<'a> ProjectivePoint<'a> for TePoint<'a> {
             y: y3,
             z: z3,
             t: t3,
-            curve: self.curve.clone(),
+            _marker: PhantomData,
         }
     }
 
-    /// Computes the Edwards-curve point 2P for this point in extended projective coordinates.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::models::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let a = fp!(u1024!(1), &params);
-    /// let d = fp!(u1024!(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
-    ///
-    /// let point = curve.identity();
-    /// let doubled = point.double();
-    /// assert_eq!(doubled, point.add(&point));
-    /// ```
-    fn double(&self) -> Self {
+    /// Double this point.
+    pub fn double(&self) -> Self {
+        // Extended Edwards doubling formula
         let a = self.x * self.x;
         let b = self.y * self.y;
-        let two = fp!(u1024!(2), self.curve.params);
-        let c = two * (self.z * self.z);
-
-        let d = self.curve.a * a;
-
-        let x_plus_y = self.x + self.y;
-        let e = (x_plus_y * x_plus_y) - a - b;
-
+        let two = Self::from_u64(2);
+        let c = two * self.z * self.z;
+        let d = P::mul_by_a(a);
+        let e = (self.x + self.y) * (self.x + self.y) - a - b;
         let g = d + b;
         let f = g - c;
         let h = d - b;
@@ -392,81 +226,300 @@ impl<'a> ProjectivePoint<'a> for TePoint<'a> {
             y: y3,
             z: z3,
             t: t3,
+            _marker: PhantomData,
+        }
+    }
+
+    /// Scalar multiplication using double-and-add.
+    pub fn mul(&self, scalar: &U1024) -> Self {
+        let mut result = Self::identity();
+        let mut base = self.clone();
+
+        for i in 0..1024 {
+            let limb_idx = i / 64;
+            let bit_idx = i % 64;
+            if (scalar.0[limb_idx] >> bit_idx) & 1 == 1 {
+                result = result.add(&base);
+            }
+            base = base.double();
+        }
+        result
+    }
+
+    /// Negate this point.
+    pub fn neg(&self) -> Self {
+        Self {
+            x: -self.x,
+            y: self.y,
+            z: self.z,
+            t: -self.t,
+            _marker: PhantomData,
+        }
+    }
+}
+
+use crate::traits::ProjectivePoint;
+
+impl<P: TwistedEdwardsConfig> ProjectivePoint for Projective<P> {
+    type Field = FieldElement<P::BaseField>;
+
+    fn is_identity(&self) -> bool {
+        self.is_identity()
+    }
+
+    fn add(&self, rhs: &Self) -> Self {
+        self.add(rhs)
+    }
+
+    fn double(&self) -> Self {
+        self.double()
+    }
+
+    fn to_affine(&self) -> (Self::Field, Self::Field) {
+        let affine = self.to_affine();
+        (affine.x, affine.y)
+    }
+
+    fn mul(&self, scalar: &U1024) -> Self {
+        self.mul(scalar)
+    }
+
+    fn neg(&self) -> Self {
+        self.neg()
+    }
+}
+
+impl<P: TwistedEdwardsConfig> Neg for Projective<P> {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        Self {
+            x: -self.x,
+            y: self.y,
+            z: self.z,
+            t: -self.t,
+            _marker: PhantomData,
+        }
+    }
+}
+
+/// Legacy Edwards curve struct (for backward compatibility).
+#[derive(Clone, Debug)]
+pub struct EdwardsCurve<C: FieldConfig> {
+    pub a: FieldElement<C>,
+    pub d: FieldElement<C>,
+    pub generator_x: FieldElement<C>,
+    pub generator_y: FieldElement<C>,
+    _marker: PhantomData<C>,
+}
+
+impl<C: FieldConfig> EdwardsCurve<C> {
+    pub fn new(
+        a: FieldElement<C>,
+        d: FieldElement<C>,
+        generator_x: FieldElement<C>,
+        generator_y: FieldElement<C>,
+    ) -> Self {
+        Self {
+            a,
+            d,
+            generator_x,
+            generator_y,
+            _marker: PhantomData,
+        }
+    }
+}
+
+/// Legacy point type (for backward compatibility).
+#[derive(Clone, Debug)]
+pub struct EdwardsPoint<C: FieldConfig> {
+    pub x: FieldElement<C>,
+    pub y: FieldElement<C>,
+    pub z: FieldElement<C>,
+    pub t: FieldElement<C>,
+    pub curve: EdwardsCurve<C>,
+}
+
+impl<C: FieldConfig> PartialEq for EdwardsPoint<C> {
+    fn eq(&self, other: &Self) -> bool {
+        let lhs_x = self.x * other.z;
+        let rhs_x = other.x * self.z;
+        let lhs_y = self.y * other.z;
+        let rhs_y = other.y * self.z;
+        lhs_x == rhs_x && lhs_y == rhs_y
+    }
+}
+
+impl<C: FieldConfig> Eq for EdwardsPoint<C> {}
+
+impl<C: FieldConfig> Neg for EdwardsPoint<C> {
+    type Output = Self;
+    fn neg(self) -> Self::Output {
+        EdwardsPoint {
+            x: -self.x,
+            y: self.y,
+            z: self.z,
+            t: -self.t,
+            curve: self.curve,
+        }
+    }
+}
+
+impl<C: FieldConfig> EdwardsPoint<C> {
+    pub fn new_affine(x: FieldElement<C>, y: FieldElement<C>, curve: EdwardsCurve<C>) -> Self {
+        EdwardsPoint {
+            x,
+            y,
+            z: FieldElement::<C>::one(),
+            t: x * y,
+            curve,
+        }
+    }
+
+    fn from_u64(val: u64) -> FieldElement<C> {
+        FieldElement::<C>::new(U1024::from_u64(val))
+    }
+}
+
+impl<C: FieldConfig> Curve for EdwardsCurve<C> {
+    type Point = EdwardsPoint<C>;
+    type BaseField = FieldElement<C>;
+
+    fn identity(&self) -> Self::Point {
+        EdwardsPoint {
+            x: FieldElement::<C>::zero(),
+            y: FieldElement::<C>::one(),
+            z: FieldElement::<C>::one(),
+            t: FieldElement::<C>::zero(),
+            curve: self.clone(),
+        }
+    }
+
+    fn is_on_curve(&self, x: &Self::BaseField, y: &Self::BaseField) -> bool {
+        let x2 = *x * *x;
+        let y2 = *y * *y;
+        let lhs = self.a * x2 + y2;
+        let rhs = FieldElement::<C>::one() + self.d * x2 * y2;
+        lhs == rhs
+    }
+
+    fn generator(&self) -> Self::Point {
+        EdwardsPoint {
+            x: self.generator_x,
+            y: self.generator_y,
+            z: FieldElement::<C>::one(),
+            t: self.generator_x * self.generator_y,
+            curve: self.clone(),
+        }
+    }
+
+    fn cofactor(&self) -> &'static [u64] {
+        &[1]
+    }
+}
+
+impl<C: FieldConfig> crate::traits::ProjectivePoint for EdwardsPoint<C> {
+    type Field = FieldElement<C>;
+
+    fn is_identity(&self) -> bool {
+        self.x.is_zero() && self.y == self.z
+    }
+
+    fn add(&self, rhs: &Self) -> Self {
+        let a = self.x * rhs.x;
+        let b = self.y * rhs.y;
+        let c = self.t * self.curve.d * rhs.t;
+        let d = self.z * rhs.z;
+        let e = (self.x + self.y) * (rhs.x + rhs.y) - a - b;
+        let f = d - c;
+        let g = d + c;
+        let h = b - self.curve.a * a;
+
+        EdwardsPoint {
+            x: e * f,
+            y: g * h,
+            z: f * g,
+            t: e * h,
             curve: self.curve.clone(),
         }
     }
 
-    /// Convert this projective/extended point into affine (x, y) coordinates.
-    ///
-    /// Returns the affine coordinates corresponding to this point. If the point is the projective
-    /// identity (z == 0), this returns the affine identity `(0, 1)`.
-    ///
-    /// # Returns
-    ///
-    /// A tuple `(x_aff, y_aff)` containing the affine `x` and `y` coordinates.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::algebra::fields::Fp;
-    /// use curvelib::models::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let a = fp!(u1024!(1), &params);
-    /// let d = fp!(u1024!(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
-    ///
-    /// let pt = curve.identity();
-    /// let (x, y) = pt.to_affine();
-    /// assert_eq!(x, Fp::zero(curve.params));
-    /// assert_eq!(y, Fp::one(curve.params));
-    /// ```
-    fn to_affine(&self) -> (Fp<'a>, Fp<'a>) {
-        if self.z.value == u1024!(0) {
-            // Access via deref
-            let zero = Fp::zero(self.curve.params);
-            let one = Fp::one(self.curve.params);
-            return (zero, one);
-        }
+    fn double(&self) -> Self {
+        let a = self.x * self.x;
+        let b = self.y * self.y;
+        let two = Self::from_u64(2);
+        let c = two * self.z * self.z;
+        let d = self.curve.a * a;
+        let e = (self.x + self.y) * (self.x + self.y) - a - b;
+        let g = d + b;
+        let f = g - c;
+        let h = d - b;
 
-        let z_inv = Field::inv(&self.z).unwrap();
-        let x_aff = self.x * z_inv;
-        let y_aff = self.y * z_inv;
-        (x_aff, y_aff)
+        EdwardsPoint {
+            x: e * f,
+            y: g * h,
+            z: f * g,
+            t: e * h,
+            curve: self.curve.clone(),
+        }
     }
 
-    /// Multiply the point by a 1024-bit scalar using a binary double-and-add algorithm.
-    ///
-    /// Returns the scalar multiple of the receiver as a new `TePoint<'a>` on the same curve.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// use curvelib::models::EdwardsCurve;
-    /// use curvelib::traits::{Curve, ProjectivePoint};
-    /// use mathlib::{u1024, fp, mont};
-    ///
-    /// let params = mont!(u1024!(17), u1024!(0));
-    /// let a = fp!(u1024!(1), &params);
-    /// let d = fp!(u1024!(2), &params);
-    /// let curve = EdwardsCurve::new(a, d, &params, &params, u1024!(0), u1024!(1));
-    ///
-    /// let p = curve.identity();
-    /// let k = u1024!(0);
-    /// let r = p.mul(&k);
-    /// assert!(r.is_identity());
-    /// ```
-    fn mul(&self, scalar: &U1024) -> Self {
-        let mut res = self.curve.identity();
-
-        for i in (0..1024).rev() {
-            res = res.double();
-            if scalar.bit(i) {
-                res = res.add(self);
-            }
+    fn to_affine(&self) -> (Self::Field, Self::Field) {
+        if self.z.is_zero() {
+            return (FieldElement::<C>::zero(), FieldElement::<C>::one());
         }
-        res
+        let z_inv = Field::inv(&self.z).unwrap();
+        (self.x * z_inv, self.y * z_inv)
+    }
+
+    fn mul(&self, scalar: &U1024) -> Self {
+        let mut result = self.curve.identity();
+        let mut base = self.clone();
+        for i in 0..1024 {
+            let limb_idx = i / 64;
+            let bit_idx = i % 64;
+            if (scalar.0[limb_idx] >> bit_idx) & 1 == 1 {
+                result = result.add(&base);
+            }
+            base = base.double();
+        }
+        result
+    }
+
+    fn neg(&self) -> Self {
+        EdwardsPoint {
+            x: -self.x,
+            y: self.y,
+            z: self.z,
+            t: -self.t,
+            curve: self.curve.clone(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::instances::tiny_jubjub::TinyJubjubConfig;
+
+    #[test]
+    fn test_identity() {
+        let id = Projective::<TinyJubjubConfig>::identity();
+        assert!(id.is_identity());
+    }
+
+    #[test]
+    fn test_generator() {
+        let g = Projective::<TinyJubjubConfig>::generator();
+        assert!(!g.is_identity());
+
+        let g_affine = g.to_affine();
+        assert!(g_affine.is_on_curve());
+    }
+
+    #[test]
+    fn test_generator_on_curve() {
+        let g = Affine::<TinyJubjubConfig>::generator();
+        assert!(g.is_on_curve());
     }
 }
